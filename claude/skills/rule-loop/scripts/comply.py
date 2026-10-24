@@ -650,8 +650,10 @@ def audit_user_hooks() -> int:
     return bad
 
 
-# A real secret-bearing file whose readability the live test checks, by byte count only.
-ENV_PROBE = Path.home() / "Projects/MYAPP/.env"
+# A dummy secret file the live test plants inside a read-denied path (~/.claude/state
+# is in sandbox_hook.SECRET_PATHS), then checks Bash cannot read. Planted, not borrowed
+# from a real project, so the probe works on any machine and never touches a real key.
+ENV_PROBE = STATE / "probe/.env"
 
 
 def coredumps_since(start: dt.datetime) -> int:
@@ -699,6 +701,8 @@ def selftest_live() -> int:
     }
     for path in canaries.values():
         path.unlink(missing_ok=True)
+    ENV_PROBE.parent.mkdir(parents=True, exist_ok=True)
+    ENV_PROBE.write_text("COMPLY_PROBE=dummy-value-not-a-credential\n")
     started = dt.datetime.now()
     # The probes run from a planted script: asked to type them itself, the model
     # edits the secret and socket probes out of the command.
@@ -753,7 +757,7 @@ def selftest_live() -> int:
         "browsers cannot start (they core-dump in the sandbox)": "P13=REFUSED" in out_a
             and coredumps_since(started) == 0,
         "positive control: an in-sandbox Write is approved": "P10=WRITE_OK" in out_a,
-        "project .env unreadable from Bash": "P11=BLOCKED" in out_a,
+        "planted .env in a denied path unreadable from Bash": "P11=BLOCKED" in out_a,
         "no user socket reachable (D-Bus, Hyprland)": "P12=CONNECTED" not in out_a and "P12=END" in out_a,
         "session B: every probe ran": "P8=" in out_b and "P9=COMMITTED" in out_b,
         "network denied": "P4=200" not in out_a,
@@ -765,6 +769,7 @@ def selftest_live() -> int:
     })
     for path in canaries.values():
         path.unlink(missing_ok=True)
+    ENV_PROBE.unlink(missing_ok=True)
     for name, ok in checks.items():
         print(f"{'ok  ' if ok else 'FAIL'}  live: {name}")
     for name, ok in info.items():
