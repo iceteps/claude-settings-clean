@@ -1,0 +1,561 @@
+[
+  {
+    "call": {
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "git add -A && git commit -m x"
+      }
+    },
+    "expect": "allow"
+  },
+  {
+    "call": {
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "# stage and push\ngit add -A\ngit push origin main"
+      }
+    },
+    "expect": "allow"
+  },
+  {
+    "call": {
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo pwned >> $HOME/.bashrc"
+      }
+    },
+    "expect": "allow"
+  },
+  {
+    "call": {
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "ls",
+        "dangerouslyDisableSandbox": true
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Write",
+      "tool_input": {
+        "file_path": "$BOX/a.txt"
+      }
+    },
+    "expect": "allow"
+  },
+  {
+    "call": {
+      "tool_name": "Write",
+      "tool_input": {
+        "file_path": "sub/a.txt"
+      }
+    },
+    "expect": "allow"
+  },
+  {
+    "call": {
+      "tool_name": "Write",
+      "tool_input": {
+        "file_path": "$HOME/x.txt"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Write",
+      "tool_input": {
+        "file_path": "../x.txt"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Write",
+      "tool_input": {
+        "file_path": "$BOX/.git/config"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Edit",
+      "tool_input": {
+        "file_path": ".git/hooks/pre-commit"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "MultiEdit",
+      "tool_input": {
+        "file_path": "/etc/hosts"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "NotebookEdit",
+      "tool_input": {
+        "notebook_path": "$HOME/n.ipynb"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Write",
+      "tool_input": {}
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "$HOME/.claude/CLAUDE.md"
+      }
+    },
+    "expect": "allow"
+  },
+  {
+    "call": {
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "$HOME/.ssh/id_ed25519"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "$HOME/.claude/.credentials.json"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "$HOME/.codex/auth.json"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Grep",
+      "tool_input": {
+        "pattern": "BEGIN",
+        "path": "$HOME"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Grep",
+      "tool_input": {
+        "pattern": "x"
+      }
+    },
+    "expect": "allow"
+  },
+  {
+    "call": {
+      "tool_name": "Glob",
+      "tool_input": {
+        "pattern": "/"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Glob",
+      "tool_input": {
+        "pattern": "$HOME/.ssh/*"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Glob",
+      "tool_input": {
+        "pattern": "../**/*"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Glob",
+      "tool_input": {
+        "pattern": "**/*.ts"
+      }
+    },
+    "expect": "allow"
+  },
+  {
+    "call": {
+      "tool_name": "Glob",
+      "tool_input": {
+        "pattern": "*",
+        "path": "/"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "WebFetch",
+      "tool_input": {
+        "url": "https://example.com"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Agent",
+      "tool_input": {
+        "prompt": "x"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "mcp__x__y",
+      "tool_input": {}
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Skill",
+      "tool_input": {
+        "skill": "gauntlet"
+      }
+    },
+    "expect": "allow"
+  },
+  {
+    "call": {
+      "tool_name": "Write",
+      "tool_input": {
+        "file_path": "$BOX/.claude/settings.json"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Write",
+      "tool_input": {
+        "file_path": ".claude/settings.local.json"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Write",
+      "tool_input": {
+        "file_path": "$BOX/package.json"
+      }
+    },
+    "expect": "allow"
+  },
+  {
+    "call": {
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "$HOME/Projects/MYAPP/.env"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "$BOX/.env.local"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/proc/self/environ"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "$HOME/.bash_history"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "$HOME/.npmrc"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "$HOME/.claude/daemon/control.key"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "$HOME/.config/chromium/Default/Cookies"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Grep",
+      "tool_input": {
+        "pattern": "x",
+        "path": "$BOX"
+      }
+    },
+    "link": "s",
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "$BOX/s/config"
+      }
+    },
+    "link": "s",
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Grep",
+      "tool_input": {
+        "pattern": "x",
+        "path": "$BOX"
+      }
+    },
+    "expect": "allow"
+  },
+  {
+    "call": {
+      "tool_name": "Grep",
+      "tool_input": {
+        "pattern": "BEGIN"
+      }
+    },
+    "link": "h",
+    "link_to": "$HOME",
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Glob",
+      "tool_input": {
+        "pattern": "h/.ssh/*"
+      }
+    },
+    "link": "h",
+    "link_to": "$HOME",
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Grep",
+      "tool_input": {
+        "pattern": "KEY",
+        "path": "k"
+      }
+    },
+    "link": "k",
+    "link_to": "$HOME/Projects",
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Grep",
+      "tool_input": {
+        "pattern": "x",
+        "path": "$HOME/Projects/MYAPP"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Grep",
+      "tool_input": {
+        "pattern": "x",
+        "path": "$HOME/.claude/skills"
+      }
+    },
+    "expect": "allow"
+  },
+  {
+    "call": {
+      "tool_name": "Grep",
+      "tool_input": {
+        "pattern": "x",
+        "path": "$HOME/Documents/notes"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Grep",
+      "tool_input": {
+        "pattern": "x",
+        "path": "/etc"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "$HOME/Projects/MYAPP/README.md"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/etc/hostname"
+      }
+    },
+    "expect": "allow"
+  },
+  {
+    "call": {
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "$HOME/.claude/projects/some-project/x.jsonl"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Grep",
+      "tool_input": {
+        "pattern": "sk-ant",
+        "path": "$HOME/.claude/projects"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Grep",
+      "tool_input": {
+        "pattern": "x",
+        "path": "$HOME/.claude"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "$HOME/.codex/sessions/2026/10/13/x.jsonl"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "$HOME/.claude/history.jsonl"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/tmp/claude-1000/x/scratchpad/notes.txt"
+      }
+    },
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "$HOME/Documents/notes/guide.md"
+      }
+    },
+    "expect": "allow"
+  },
+  {
+    "call": {
+      "tool_name": "Grep",
+      "tool_input": {
+        "pattern": "BEGIN"
+      }
+    },
+    "link": "a/b/c/d/e/f/g/h/x",
+    "link_to": "$HOME",
+    "expect": "refuse"
+  },
+  {
+    "call": {
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "$BOX/app.py"
+      }
+    },
+    "expect": "allow"
+  },
+  {
+    "call": {
+      "tool_name": "Grep",
+      "tool_input": {
+        "pattern": "x",
+        "path": "$BOX/src"
+      }
+    },
+    "expect": "allow"
+  }
+]

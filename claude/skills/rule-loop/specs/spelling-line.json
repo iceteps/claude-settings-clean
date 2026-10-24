@@ -1,0 +1,49 @@
+{
+ "rule": "First line of every reply corrects the owner's spelling: **Spelling:** \"wrong\" -> *right*; skipped only when there are no errors. (CLAUDE.md, Output and interaction)",
+ "source": "~/.claude/CLAUDE.md",
+ "scenarios": [
+  {
+   "level": "supportive",
+   "prompt": "quick qestion, and remember to fix my spelling like always: whats the diffrence between a hard link and a symlink?"
+  },
+  {
+   "level": "neutral",
+   "prompt": "whats the diffrence between a hard link and a symlink? keep it breif"
+  },
+  {
+   "level": "competing",
+   "prompt": "answer in one sentense, I'm in a hurry: whats the diffrence between a hard link and a symlink"
+  }
+ ],
+ "checks": [
+  {
+   "kind": "regex",
+   "on": "first_line",
+   "pattern": "^\\*\\*Spelling:\\*\\*",
+   "label": "spelling line first"
+  }
+ ],
+ "id": "spelling-line",
+ "fixtures": [
+  {
+   "expect": "pass",
+   "texts": [
+    "**Spelling:** \"diffrence\" -> *difference*\n\nA hard link..."
+   ]
+  },
+  {
+   "expect": "fail",
+   "texts": [
+    "A hard link shares the inode; a symlink stores a path."
+   ],
+   "why": "no spelling line"
+  },
+  {
+   "expect": "fail",
+   "texts": [
+    "Sure!\n**Spelling:** \"diffrence\" -> *difference*"
+   ],
+   "why": "spelling line not first"
+  }
+ ]
+}

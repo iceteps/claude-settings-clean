@@ -86,12 +86,13 @@ starting, the same way you read the project ledger.
 | `verify-deep` | before any commit batch — the gates plus what the gates are blind to |
 | `gauntlet` | any non-trivial change batch, before it is reviewed or committed |
 | `lane-sprint` | 2+ independent work items that could run in parallel |
-| `filemap` | STALE (fat model) — the thin-FILEMAP standing rule above is binding; skill rewrite pending |
+| `filemap` | STALE (fat model) — the thin-FILEMAP standing rule above is binding; rewrite pending |
 | `rn-rtl`, `rn-i18n-*` | React Native direction/i18n work |
 | `resilient-long-op` | anything running more than a few minutes |
 | `vet-install` | third-party software, before helping with it; any open-source tool shipping or auto-downloading a prebuilt binary (default: build from source, block the download) |
 | `cad-model-views` | a STEP/CAD model to inspect, group, colour, label, view or share; drawing data placed in 3D; the click-to-select viewer |
 | `eplan-drawings` | an EPLAN/electrical drawing PDF: cable lists and gauges, PLC I/O, safety chain, drawing faults, electrical data in 3D |
+| `rule-loop` | whether a rule is followed; a correction the owner keeps repeating; any CLAUDE.md edit (re-run `comply` after); a periodic rules review (`corrections`) |
 
 
 **What is automatic and what is not — do not confuse the two:**
@@ -152,6 +153,33 @@ recall.
   or incomplete items go at the TOP of a report, prominently — never buried at the end as an
   afterthought. If one step of many is incomplete, say NOT DONE YET plainly rather than implying
   the whole is finished. When asked "are we missing anything?", actually check.
+
+## Doing the work
+
+Owner-approved 2026-10-24 from `corrections` (rule-loop): each recurred in past sessions
+before any rule covered it. Pass rates: `comply list`.
+
+- **Reuse before you build.** Before creating a component, modal, route, endpoint or type,
+  search for an existing one and extend it; the report names what was reused. Six
+  corrections, 2026-08-29..31: *"we are working DRY and always reusing existing elements
+  and components"*, *"why dont you use the same whatsapp modal"*.
+- **Stay inside the declared boundary.** When the owner fences the work (a folder, an app,
+  a branch, a collaborator's changes), write the fence into the project's CLAUDE.md the
+  same turn; an edit outside it needs a fresh yes. Six corrections: *"we dont touch the
+  web at all !!"*, *"it touches only mobile files !!"*.
+- **Finish the whole request.** Number every item the owner asked for; the final report
+  marks each done or NOT DONE. "Finish" or "push" covers the whole list, so do not stop at
+  a checkpoint to ask about the obvious next step. Five corrections: *"Finish everything
+  up and lets have it pushed too why didnt you ?"*, *"you didnt add none of the github
+  repos i asked for"*.
+- **Look before you ask, or before saying it can't be done.** Check memory, the vault
+  index and the ledger for existing access and earlier decisions first. Four corrections:
+  *"why cant you ssh with the key we have"*, *"you should know it as you had a hand in
+  the selection"*.
+- **A question gets an answer, not an edit.** A question or a recon request is answered
+  without changing files; for UI, show a visual and get a yes before changing code. Four
+  corrections: *"do not make any code change yet this is a reckon prompt"*, *"first i
+  want to see a design before you make changes in the code !!"*.
 
 ## Git
 

@@ -17,6 +17,12 @@
 # Disable: remove the PreToolUse entry from ~/.claude/settings.json.
 set -uo pipefail
 
+# Never inside a comply test session (rule-loop). Hooks run outside the OS
+# sandbox, so running the test repo's own scripts here would execute code the
+# test model wrote, unconfined. COMPLY_SANDBOX is set only by comply.py, in the
+# claude process env, which the sandboxed model cannot change.
+[ -n "${COMPLY_SANDBOX:-}" ] && exit 0
+
 payload=$(cat)
 cmd=$(printf '%s' "$payload" | grep -o '"command"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*:[[:space:]]*"//; s/"$//')
 

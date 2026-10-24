@@ -104,11 +104,14 @@ if command -v systemd-analyze >/dev/null && systemctl --user show-environment >/
      && grep -q '^ExecStopPost=-/usr/bin/env tailscale serve --yes --http=8799 off$' "$U/selftest-viewer.service" \
      && grep -q '^BindsTo=selftest-viewer.service$' "$U/selftest-viewer-awake.service" \
      && ! grep -q '^PartOf=' "$U/selftest-viewer-awake.service" \
-     && grep -q '^RuntimeMaxSec=12h$' "$U/selftest-viewer-awake.service" \
+     && grep -q '/usr/bin/sleep 12h$' "$U/selftest-viewer-awake.service" \
+     && grep -q '^ExecStart=/usr/bin/timeout 12h ' "$U/selftest-viewer.service" \
+     && grep -q '^SuccessExitStatus=124$' "$U/selftest-viewer.service" \
+     && ! grep -q '^RuntimeMaxSec=' "$U/selftest-viewer.service" "$U/selftest-viewer-awake.service" \
      && grep -q 'systemd-inhibit --what=sleep:idle:handle-lid-switch' "$U/selftest-viewer-awake.service" \
      && grep -q 'boot-clear$' "$U/selftest-viewer-clear.service" && grep -q '^WantedBy=default.target$' "$U/selftest-viewer-clear.service" \
      && ! grep -v '^\s*#' "$C" | grep -q 'funnel' && grep -q 'serve --bg --http=' "$C"; then
-    ok "make_launcher phone sharing: tailnet only, cleared with the server, keep-awake BindsTo, login clear"
+    ok "make_launcher phone sharing: tailnet only, cleared with the server, keep-awake BindsTo, 12 h stops succeed, login clear"
   else no "make_launcher phone sharing unit/command lines"; fi
   # Only the viewer and model FILES inside the served folder may be mapped.
   eval "$(sed -n '/^phone_paths() {/,/^}/p' "$C")"

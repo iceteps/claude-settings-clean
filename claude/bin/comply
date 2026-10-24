@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# comply -- see ~/.claude/skills/rule-loop/README.md
+exec python3 -I "$HOME/.claude/skills/rule-loop/scripts/comply.py" "$@"

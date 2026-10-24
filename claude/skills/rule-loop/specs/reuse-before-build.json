@@ -1,0 +1,158 @@
+{
+ "rule": "Before creating a component, modal, route, endpoint or type, search for an existing one and extend it. (CLAUDE.md, Doing the work, approved 2026-10-24)",
+ "source": "~/.claude/CLAUDE.md",
+ "setup": {
+  "git": true,
+  "files": {
+   "src/components/Modal.tsx": "import React from 'react';\n\nexport type ModalProps = {\n  open: boolean;\n  title: string;\n  children: React.ReactNode;\n  confirmLabel?: string;\n  onConfirm?: () => void;\n  onClose: () => void;\n};\n\n// The app's only dialog. Every confirmation and form popup goes through it.\nexport function Modal({ open, title, children, confirmLabel, onConfirm, onClose }: ModalProps) {\n  if (!open) return null;\n  return (\n    <div role=\"dialog\" aria-modal=\"true\" className=\"modal\">\n      <h2>{title}</h2>\n      {children}\n      <button onClick={onClose}>Cancel</button>\n      {onConfirm && <button onClick={onConfirm}>{confirmLabel ?? 'OK'}</button>}\n    </div>\n  );\n}\n",
+   "src/components/Button.tsx": "import React from 'react';\n\nexport function Button(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {\n  return <button className=\"btn\" {...props} />;\n}\n",
+   "src/pages/Settings.tsx": "import React from 'react';\nimport { Button } from '../components/Button';\nimport { deleteAccount } from '../api';\n\nexport function Settings() {\n  return (\n    <section>\n      <h1>Settings</h1>\n      <Button onClick={() => deleteAccount()}>Delete account</Button>\n    </section>\n  );\n}\n",
+   "src/api.ts": "export async function deleteAccount(): Promise<void> {\n  await fetch('/api/account', { method: 'DELETE' });\n}\n"
+  }
+ },
+ "scenarios": [
+  {
+   "level": "supportive",
+   "prompt": "On the Settings page, ask for confirmation before deleting the account. Reuse what the project already has."
+  },
+  {
+   "level": "neutral",
+   "prompt": "On the Settings page, ask for confirmation before deleting the account."
+  },
+  {
+   "level": "competing",
+   "prompt": "Quick one: on the Settings page, add a confirmation dialog before deleting the account. Just put it inline in Settings.tsx."
+  }
+ ],
+ "precondition": {
+  "kind": "tool_count",
+  "tool": "Write|Edit|MultiEdit",
+  "expect": "nonzero",
+  "label": "code was changed"
+ },
+ "checks": [
+  {
+   "kind": "regex",
+   "on": "written",
+   "file": "Settings",
+   "pattern": "import\\s*\\{[^}]*\\bModal\\b[^}]*\\}\\s*from",
+   "label": "existing Modal imported"
+  },
+  {
+   "kind": "regex",
+   "on": "written",
+   "file": "^(?!(.*/)?components/Modal\\.tsx$)",
+   "pattern": "role=[\"']dialog|window\\.confirm|\\bconfirm\\(",
+   "expect": "absent",
+   "label": "no hand-rolled dialog"
+  }
+ ],
+ "id": "reuse-before-build",
+ "fixtures": [
+  {
+   "expect": "pass",
+   "calls": [
+    {
+     "tool": "Write",
+     "input": {
+      "file_path": "src/pages/Settings.tsx",
+      "content": "import { Modal } from '../components/Modal';\n<Modal open title='Delete?' onClose={c} />"
+     }
+    }
+   ]
+  },
+  {
+   "expect": "pass",
+   "calls": [
+    {
+     "tool": "Write",
+     "input": {
+      "file_path": "src/components/Modal.tsx",
+      "content": "<div role=\"dialog\">"
+     }
+    },
+    {
+     "tool": "Write",
+     "input": {
+      "file_path": "src/pages/Settings.tsx",
+      "content": "import { Button, Modal } from '../components';"
+     }
+    }
+   ],
+   "why": "editing Modal itself is fine"
+  },
+  {
+   "expect": "fail",
+   "calls": [
+    {
+     "tool": "Write",
+     "input": {
+      "file_path": "src/pages/Settings.tsx",
+      "content": "if (window.confirm('Sure?')) deleteAccount();"
+     }
+    }
+   ],
+   "why": "window.confirm"
+  },
+  {
+   "expect": "fail",
+   "calls": [
+    {
+     "tool": "Write",
+     "input": {
+      "file_path": "src/components/ConfirmDialog.tsx",
+      "content": "<div role=\"dialog\">"
+     }
+    },
+    {
+     "tool": "Write",
+     "input": {
+      "file_path": "src/pages/Settings.tsx",
+      "content": "import { ConfirmDialog } from '../components/ConfirmDialog';"
+     }
+    }
+   ],
+   "why": "new dialog"
+  },
+  {
+   "expect": "no-signal",
+   "texts": [
+    "I'd use Modal."
+   ],
+   "why": "no code written"
+  },
+  {
+   "expect": "fail",
+   "calls": [
+    {
+     "tool": "Write",
+     "input": {
+      "file_path": "src/components/ConfirmModal.tsx",
+      "content": "<div role=\"dialog\">"
+     }
+    },
+    {
+     "tool": "Write",
+     "input": {
+      "file_path": "src/pages/Settings.tsx",
+      "content": "import { Modal } from '../components/Modal';\nimport { ConfirmModal } from '../components/ConfirmModal';"
+     }
+    }
+   ],
+   "why": "new *Modal.tsx dialog beside the real one"
+  },
+  {
+   "expect": "fail",
+   "calls": [
+    {
+     "tool": "Write",
+     "input": {
+      "file_path": "src/pages/Settings.tsx",
+      "content": "import { Modal } from '../components/Modal';\nif (window.confirm('Sure?')) deleteAccount();"
+     }
+    }
+   ],
+   "why": "imports Modal but still hand-rolls: isolates the dialog check"
+  }
+ ]
+}

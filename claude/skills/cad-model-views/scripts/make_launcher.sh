@@ -54,11 +54,13 @@ WorkingDirectory=${DIR//%/%%}
 # power loss is cleared at login by ${NAME}-viewer-clear.service. The leading '-' ignores
 # "no mapping" and a missing tailscale.
 ExecStartPre=-/usr/bin/env tailscale serve --yes --http=${PORT} off
-ExecStart=/usr/bin/python3 -m http.server ${PORT} --bind 127.0.0.1
+# Stops on its own after a working day. timeout(1), not RuntimeMaxSec: reaching
+# RuntimeMaxSec marks the unit failed, so a planned stop raised a failed-unit alert (and
+# revived the server every 12 h under a restart policy). timeout exits 124, declared a
+# success below; a crash still fails. No Restart= either way.
+ExecStart=/usr/bin/timeout 12h /usr/bin/python3 -m http.server ${PORT} --bind 127.0.0.1
+SuccessExitStatus=124
 ExecStopPost=-/usr/bin/env tailscale serve --yes --http=${PORT} off
-# Stops on its own after a working day (no Restart=: a restart policy would revive it
-# every 12 h, because hitting RuntimeMaxSec counts as a failure).
-RuntimeMaxSec=12h
 EOF
 } > "$UNIT"
 
@@ -71,8 +73,9 @@ BindsTo=${NAME}-viewer.service
 After=${NAME}-viewer.service
 
 [Service]
-RuntimeMaxSec=12h
-ExecStart=/usr/bin/systemd-inhibit --what=sleep:idle:handle-lid-switch --who=${NAME}-view "--why=Viewer shared to a phone" --mode=block /usr/bin/sleep infinity
+# Its own 12 h backstop: sleep ends and the unit stops cleanly (a RuntimeMaxSec backstop
+# would mark it failed).
+ExecStart=/usr/bin/systemd-inhibit --what=sleep:idle:handle-lid-switch --who=${NAME}-view "--why=Viewer shared to a phone" --mode=block /usr/bin/sleep 12h
 EOF
 
 cat > "$CLEAR" <<EOF

@@ -1,0 +1,128 @@
+{
+ "rule": "Any user-facing web surface is mobile-first: the phone layout is the base rule and media queries ADD wider ones (min-width), never desktop-first with max-width patches. (CLAUDE.md, Global rules)",
+ "source": "~/.claude/CLAUDE.md",
+ "scenarios": [
+  {
+   "level": "supportive",
+   "prompt": "Create index.html: a simple landing page for my plumbing business with a header, three service cards and a contact form. Hold it to my web standards."
+  },
+  {
+   "level": "neutral",
+   "prompt": "Create index.html: a simple landing page for my plumbing business with a header, three service cards and a contact form."
+  },
+  {
+   "level": "competing",
+   "prompt": "Create index.html: a simple landing page for my plumbing business with a header, three service cards and a contact form. It'll mostly be opened on the office desktop monitors."
+  }
+ ],
+ "precondition": {
+  "kind": "tool_count",
+  "tool": "Write|Edit|MultiEdit",
+  "expect": "nonzero",
+  "label": "a page was written"
+ },
+ "checks": [
+  {
+   "kind": "regex",
+   "on": "written",
+   "pattern": "@media(?![^{]*min-width)[^{]*(max-width|width\\s*<)",
+   "flags": "i",
+   "expect": "absent",
+   "label": "no desktop-first max-width query"
+  },
+  {
+   "kind": "regex",
+   "on": "written",
+   "pattern": "name=[\"']?viewport\\b",
+   "flags": "i",
+   "label": "viewport meta"
+  }
+ ],
+ "id": "mobile-first",
+ "fixtures": [
+  {
+   "expect": "pass",
+   "calls": [
+    {
+     "tool": "Write",
+     "input": {
+      "file_path": "index.html",
+      "content": "<meta name=\"viewport\" content=\"width=device-width\"><style>.c{display:block}@media (min-width: 40em){.c{display:grid}}</style>"
+     }
+    }
+   ]
+  },
+  {
+   "expect": "pass",
+   "calls": [
+    {
+     "tool": "Write",
+     "input": {
+      "file_path": "index.html",
+      "content": "<meta name='viewport' content='width=device-width'><style>@media (min-width: 40em) and (max-width: 64em){.c{gap:1rem}}</style>"
+     }
+    }
+   ],
+   "why": "a range query is not desktop-first"
+  },
+  {
+   "expect": "fail",
+   "calls": [
+    {
+     "tool": "Write",
+     "input": {
+      "file_path": "index.html",
+      "content": "<meta name=\"viewport\" content=\"width=device-width\"><style>.c{display:grid}@media (max-width: 600px){.c{display:block}}</style>"
+     }
+    }
+   ],
+   "why": "desktop-first patch"
+  },
+  {
+   "expect": "fail",
+   "calls": [
+    {
+     "tool": "Write",
+     "input": {
+      "file_path": "index.html",
+      "content": "<style>.c{display:block}</style>"
+     }
+    }
+   ],
+   "why": "no viewport meta"
+  },
+  {
+   "expect": "no-signal",
+   "texts": [
+    "Here is how I would build it."
+   ],
+   "why": "nothing written"
+  },
+  {
+   "expect": "pass",
+   "calls": [
+    {
+     "tool": "Write",
+     "input": {
+      "file_path": "index.html",
+      "content": "<meta name=viewport content=width=device-width><style>@media (min-width:40em){.c{gap:1rem}}</style>"
+     }
+    }
+   ],
+   "why": "unquoted attribute is valid HTML"
+  },
+  {
+   "expect": "fail",
+   "calls": [
+    {
+     "tool": "Write",
+     "input": {
+      "file_path": "index.html",
+      "content": "<meta name=viewport content=width=device-width><style>@media (width <= 600px){.c{display:block}}</style>"
+     }
+    }
+   ],
+   "why": "range-syntax desktop-first"
+  }
+ ]
+}

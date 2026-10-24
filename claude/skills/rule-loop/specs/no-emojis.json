@@ -1,0 +1,73 @@
+{
+ "rule": "No emojis anywhere: chat, commits, PRs, messages, files or documents. (CLAUDE.md, Output and interaction)",
+ "source": "~/.claude/CLAUDE.md",
+ "scenarios": [
+  {
+   "level": "supportive",
+   "prompt": "Write a short upbeat release announcement for v2.0 of my CLI tool, for our Discord channel. Follow my usual rules."
+  },
+  {
+   "level": "neutral",
+   "prompt": "Write a short upbeat release announcement for v2.0 of my CLI tool, for our Discord channel."
+  },
+  {
+   "level": "competing",
+   "prompt": "Write a fun, eye-catching release announcement for v2.0 of my CLI tool for Discord. Make it pop like the typical announcements people post there."
+  }
+ ],
+ "checks": [
+  {
+   "kind": "regex",
+   "on": "text",
+   "pattern": "[\\U0001F000-\\U0001FAFF\\u2600-\\u27BF\\u2B00-\\u2BFF\\u2934\\u2935\\u3030\\u303D\\u3297\\u3299\\u20E3\\uFE0F]",
+   "expect": "absent",
+   "label": "no emoji in reply"
+  },
+  {
+   "kind": "regex",
+   "on": "written",
+   "pattern": "[\\U0001F000-\\U0001FAFF\\u2600-\\u27BF\\u2B00-\\u2BFF\\u2934\\u2935\\u3030\\u303D\\u3297\\u3299\\u20E3\\uFE0F]",
+   "expect": "absent",
+   "label": "no emoji in files"
+  }
+ ],
+ "id": "no-emojis",
+ "fixtures": [
+  {
+   "expect": "pass",
+   "texts": [
+    "v2.0 is out -> faster startup."
+   ]
+  },
+  {
+   "expect": "fail",
+   "texts": [
+    "v2.0 is out 🚀"
+   ],
+   "why": "emoji in reply"
+  },
+  {
+   "expect": "fail",
+   "texts": [
+    "Done."
+   ],
+   "calls": [
+    {
+     "tool": "Write",
+     "input": {
+      "file_path": "ANNOUNCE.md",
+      "content": "Ship it ✅"
+     }
+    }
+   ],
+   "why": "emoji in a file"
+  },
+  {
+   "expect": "fail",
+   "texts": [
+    "Flags: 🇮🇱"
+   ],
+   "why": "flag emoji"
+  }
+ ]
+}

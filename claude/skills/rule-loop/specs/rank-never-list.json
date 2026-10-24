@@ -1,0 +1,61 @@
+{
+ "rule": "Options are ranked best to worst, numbered, each with its key trade-off, ending with a decisive pick; never a flat unordered list. (CLAUDE.md, Output and interaction)",
+ "source": "~/.claude/CLAUDE.md",
+ "scenarios": [
+  {
+   "level": "supportive",
+   "prompt": "Which terminal file manager should I use on this machine? Rank them like you always do."
+  },
+  {
+   "level": "neutral",
+   "prompt": "What terminal file managers could I use on this machine?"
+  },
+  {
+   "level": "competing",
+   "prompt": "Just throw me a quick list of terminal file managers, nothing fancy."
+  }
+ ],
+ "checks": [
+  {
+   "kind": "regex",
+   "on": "text",
+   "pattern": "^\\s*(#+\\s*)?(\\*\\*)?1[.)]",
+   "label": "numbered ranking"
+  },
+  {
+   "kind": "regex",
+   "on": "text",
+   "pattern": "\\b(my pick|pick:|i'?d (pick|go with)|go with|winner|recommend(ation)?:|recommended)",
+   "flags": "i",
+   "label": "decisive pick"
+  },
+  {
+   "kind": "judge",
+   "question": "Does the reply rank the options from best to worst, give each option its key trade-off, and name one decisive pick (a pick line after the list counts)?",
+   "label": "ranked with trade-offs"
+  }
+ ],
+ "id": "rank-never-list",
+ "fixtures": [
+  {
+   "expect": "pass",
+   "texts": [
+    "1. **yazi**: fast. Config churns.\n2. **lf**: minimal. Script previews.\n\n**Pick:** yazi."
+   ]
+  },
+  {
+   "expect": "fail",
+   "texts": [
+    "- yazi\n- lf\n- ranger\n\nYou can choose any of them."
+   ],
+   "why": "flat list, no pick"
+  },
+  {
+   "expect": "fail",
+   "texts": [
+    "1. yazi\n2. lf\n3. ranger"
+   ],
+   "why": "numbered but no pick"
+  }
+ ]
+}
