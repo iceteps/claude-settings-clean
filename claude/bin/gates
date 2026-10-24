@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# gates — run the verification gates against a project WITHOUT installing
+# anything into it.
+#
+# THE POINT: the tools stay yours. Nothing is copied into the repo, nothing is
+# committed, nothing appears in somebody else's pull request. Per-project state
+# (design baseline, declared conventions) lives in ~/.claude/gate-state/<slug>,
+# keyed by the repo's absolute path — so a repo can have a checked convention
+# without having a file.
+#
+#   gates            # run every applicable gate against this project
+#   gates --update   # restamp the design baseline (never grows it)
+#   gates --where    # print where this project's state is kept
+#
+# For YOUR OWN repos, where the gates should travel with the code and run in CI,
+# install them instead: gate-scripts/scripts/bootstrap.sh.
+set -uo pipefail
+
+SKILL="$HOME/.claude/skills/gate-scripts/scripts"
+root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+cd "$root" || exit 1
+
+slug=$(printf '%s' "$root" | sed 's#^/##; s#[^A-Za-z0-9]#_#g')
+state="$HOME/.claude/gate-state/$slug"
+mkdir -p "$state"
+export GATE_STATE_DIR="$state"
+
+if [ "${1:-}" = "--where" ]; then
+  echo "$root"
+  echo "  state: $state"
+  ls -la "$state" 2>/dev/null | tail -n +4 | sed 's/^/    /'
+  exit 0
+fi
+
+# Source dirs: whatever this project actually has.
+dirs=()
+for d in src app lib source; do [ -d "$d" ] && dirs+=("$d"); done
+if [ ${#dirs[@]} -eq 0 ]; then
+  echo "gates — no source directory (src/app/lib/source) in $(basename "$root")"
+  exit 0
+fi
+
+fail=0
+run() {
+  local label="$1"; shift
+  local out
+  out=$("$@" 2>&1); local rc=$?
+  if [ $rc -eq 0 ]; then
+    printf '  ✓ %s\n' "$label"
+  else
+    printf '  ✗ %s\n' "$label"
+    printf '%s\n' "$out" | sed 's/^/      /'
+    fail=1
+  fi
+}
+
+echo "gates — $(basename "$root")  (state: ~/.claude/gate-state/$slug)"
+
+for d in "${dirs[@]}"; do
+  run "hardcoded strings ($d)" node "$SKILL/hardcode-check.mjs" "$d"
+  run "rtl invariants ($d)"    node "$SKILL/rtl-check.mjs" "$d"
+  run "font pairing ($d)"      node "$SKILL/font-check.mjs" "$d"
+done
+[ -d "${dirs[0]}/i18n" ] && run "i18n parity" node "$SKILL/i18n-check.mjs"
+if [ "${1:-}" = "--update" ]; then
+  run "design tokens (restamp)" node "$SKILL/design-check.mjs" --update
+else
+  run "design tokens" node "$SKILL/design-check.mjs"
+fi
+# Repo-committed config wins (a repo that carries its bar); else the gate-state
+# copy — which the docs always TAUGHT but this line never actually read (fixed
+# 2026-09-03: a conventions.json in gate-state was silently ignored).
+if [ -f .claude/conventions.json ]; then
+  run "conventions" node "$SKILL/convention-check.mjs" .claude/conventions.json
+else
+  run "conventions" node "$SKILL/convention-check.mjs" "$state/conventions.json"
+fi
+
+echo
+if [ $fail -eq 0 ]; then
+  echo "all gates green — nothing was written into $(basename "$root")"
+else
+  echo "gates FAILED. State and config: $state"
+  echo "Declare a convention: \$EDITOR $state/conventions.json"
+fi
+exit $fail

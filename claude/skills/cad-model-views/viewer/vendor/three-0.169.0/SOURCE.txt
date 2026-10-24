@@ -1,0 +1,4 @@
+three.js r169 (npm three@0.169.0, MIT, see LICENSE).
+Tarball integrity verified against the npm registry on 2026-10-21:
+sha512-Ed906MA3dR4TS5riErd4QBsRGPcx+HBDX2O5yYE5GqJeFQTPU+M56Va/f/Oph9X7uZo3W3o4l2ZhBZ6f6qUv0w==
+Only the four files listed in SHA256SUMS were extracted. Check: sha256sum -c SHA256SUMS

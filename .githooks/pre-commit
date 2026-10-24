@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Every commit to this repo, by any tool or by hand, passes the secret scan.
+exec "$(git rev-parse --show-toplevel)/scripts/secret-scan" --staged

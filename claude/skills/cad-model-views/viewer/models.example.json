@@ -1,0 +1,7 @@
+{
+  "title": "Plant Model Viewer",
+  "models": [
+    {"key": "main", "label": "Main model", "url": "../model.glb"},
+    {"key": "detail", "label": "Detail", "url": "detail-parts.glb"}
+  ]
+}

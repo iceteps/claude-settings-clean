@@ -1,0 +1,55 @@
+{
+  "version": 2,
+  "plugins": {
+    "supabase@claude-plugins-official": [
+      {
+        "scope": "user",
+        "installPath": "~/.claude/plugins/cache/claude-plugins-official/supabase/0.1.16",
+        "version": "0.1.16",
+        "installedAt": "2026-08-16T17:56:34.941Z",
+        "lastUpdated": "2026-10-18T01:18:46.504Z",
+        "gitCommitSha": "2c6d02d4565babe784103ee4d446a93ae9b24151"
+      }
+    ],
+    "impeccable@impeccable": [
+      {
+        "scope": "user",
+        "installPath": "~/.claude/plugins/cache/impeccable/impeccable/4.7.0",
+        "version": "4.7.0",
+        "installedAt": "2026-08-16T17:58:02.181Z",
+        "lastUpdated": "2026-10-22T16:08:47.112Z",
+        "gitCommitSha": "e07dc019a75e973db1c71843143bf6f9fd33d87c"
+      }
+    ],
+    "frontend-design@claude-plugins-official": [
+      {
+        "scope": "user",
+        "installPath": "~/.claude/plugins/cache/claude-plugins-official/frontend-design/58267944f921",
+        "version": "58267944f921",
+        "installedAt": "2026-08-16T18:03:28.855Z",
+        "lastUpdated": "2026-10-23T21:52:29.194Z",
+        "gitCommitSha": "58267944f92187b7d6a1c822165c96c81c864806"
+      }
+    ],
+    "figma@claude-plugins-official": [
+      {
+        "scope": "user",
+        "installPath": "~/.claude/plugins/cache/claude-plugins-official/figma/2.2.157",
+        "version": "2.2.157",
+        "installedAt": "2026-08-16T18:04:06.529Z",
+        "lastUpdated": "2026-10-18T01:18:46.551Z",
+        "gitCommitSha": "f2789420e7e8b4e2465dfeb1e12e1fc6a31397e5"
+      }
+    ],
+    "superdesign@claude-plugins-official": [
+      {
+        "scope": "user",
+        "installPath": "~/.claude/plugins/cache/claude-plugins-official/superdesign/0.6.0",
+        "version": "0.6.0",
+        "installedAt": "2026-08-16T18:04:36.322Z",
+        "lastUpdated": "2026-09-03T09:37:05.446Z",
+        "gitCommitSha": "dc60b43625426bdd1e88fe494739fd5ea27daedd"
+      }
+    ]
+  }
+}

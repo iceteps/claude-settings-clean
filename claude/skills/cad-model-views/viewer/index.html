@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Model Viewer</title>
+<style>
+  :root {
+    --bg: #1d2024; --panel: #262a30; --panel-2: #2f343b; --line: #3c424a;
+    --ink: #e8eaed; --ink-2: #a9b0b8; --accent: #ffb300; --accent-ink: #1d2024;
+    --touch: 44px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+    font: 15px/1.4 system-ui, "Noto Sans", sans-serif; overflow: hidden; }
+  button, select, input { font: inherit; color: var(--ink); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 8px; min-height: var(--touch); }
+  button { padding: 0 14px; cursor: pointer; }
+  button:hover { border-color: var(--ink-2); }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+
+  /* Phone first: toolbar on top, canvas below it, then the selection bar and the Info sheet,
+     both docked under the canvas. Neither overlays the canvas, so a selection is never hidden. */
+  #app { display: flex; flex-direction: column; height: 100%; }
+  #bar { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px; background: var(--panel);
+    border-bottom: 1px solid var(--line); }
+  #bar select { flex: 1 1 0; min-width: 0; padding: 0 8px; }
+  /* Phone: model, Layers and Legend share the first row; search gets the full second row. */
+  #search-wrap { position: relative; order: 1; flex: 1 1 100%; min-width: 0; }
+  #search { width: 100%; padding: 0 12px; }
+  #results { position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 4px);
+    max-height: 50vh; overflow-y: auto; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 8px; display: none; }
+  #results button { display: block; width: 100%; text-align: left; border: 0; border-radius: 0;
+    background: transparent; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #results button:hover, #results button:focus { background: var(--panel-2); }
+  #layers-btn, #legend-btn { flex: 0 0 auto; }
+  #main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto auto; }
+  #view { position: relative; min-height: 0; }
+  canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; }
+  #status { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px;
+    max-width: calc(100% - 32px); text-align: center; }
+  #hover { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 6px; padding: 4px 8px; font-size: 13px; display: none; max-width: 60vw;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* One row while something is selected: its name, Zoom, Info and clear. */
+  #selbar { display: none; align-items: center; gap: 6px; padding: 6px 8px; background: var(--panel);
+    border-top: 1px solid var(--line); }
+  #selbar.open { display: flex; }
+  #selbar h2 { flex: 1; min-width: 0; margin: 0 4px; font-size: 16px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; }
+  #selbar button { flex: 0 0 auto; padding: 0 12px; }
+  #clear-btn { min-width: var(--touch); font-size: 20px; }
+  #info-btn[aria-expanded="true"] { border-color: var(--accent); }
+  /* The details, only when asked for (Info); the choice is remembered. */
+  #info { display: none; max-height: 40vh; overflow-y: auto; background: var(--panel);
+    border-top: 1px solid var(--line); padding: 4px 16px 12px; }
+  #info.open { display: block; }
+  #info h3 { margin: 4px 0; font-size: 15px; overflow-wrap: anywhere; }
+  #info dl { margin: 0; display: grid; grid-template-columns: 1fr; gap: 2px 12px; }
+  #info dt { color: var(--ink-2); font-size: 13px; margin-top: 6px; }
+  #info dd { margin: 0; overflow-wrap: anywhere; }
+  .hint { color: var(--ink-2); font-size: 13px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* Layers and Legend: toolbar dropdowns over the canvas, one open at a time. */
+  .pop { position: absolute; right: 8px; top: 8px; z-index: 6; width: min(340px, calc(100% - 16px));
+    max-height: calc(100% - 16px); overflow-y: auto; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 8px; padding: 8px 12px; display: none; }
+  .pop.open { display: block; }
+  .pop h3 { margin: 6px 0 2px; font-size: 14px; color: var(--ink-2); }
+  #layers label { display: flex; align-items: center; gap: 10px; min-height: var(--touch); cursor: pointer; }
+  #layers input { width: 22px; height: 22px; min-height: 0; }
+  #dim-row { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 4px; }
+  .legend-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 4px 6px;
+    text-align: left; background: transparent; border-color: transparent; }
+  .legend-row.active { border-color: var(--accent); }
+  .legend-row:disabled { cursor: default; opacity: 0.5; }
+  .legend-row .label { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .legend-row .count { color: var(--ink-2); font-size: 13px; }
+  .swatch { flex: 0 0 28px; height: 18px; border: 1px solid var(--line); border-radius: 3px; }
+
+  /* Wider screens: one toolbar row. */
+  @media (min-width: 900px) {
+    #bar { flex-wrap: nowrap; }
+    #bar select { flex: 0 0 220px; }
+    #search-wrap { order: 0; flex: 1 1 auto; }
+  }
+  /* A landscape phone is short: one toolbar row there too, or the canvas is a sliver. */
+  @media (min-width: 600px) and (max-height: 500px) {
+    #bar { flex-wrap: nowrap; }
+    #search-wrap { order: 0; flex: 2 1 0; }
+  }
+  /* Wide or short screens: the bar stays under the canvas and Info becomes a side column. */
+  @media (min-width: 900px), (min-width: 600px) and (max-height: 500px) {
+    #main { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr) auto; }
+    #view { grid-column: 1; grid-row: 1; }
+    #selbar { grid-column: 1; grid-row: 2; }
+    #info { grid-column: 2; grid-row: 1 / 3; width: min(340px, 45vw); max-height: none; border-top: 0;
+      border-left: 1px solid var(--line); padding: 12px 16px 16px; }
+    #info dl { grid-template-columns: max-content 1fr; }
+    #info dt { margin-top: 0; font-size: 14px; }
+  }
+</style>
+<script type="importmap">
+  { "imports": { "three": "./vendor/three-0.169.0/three.module.min.js" } }
+</script>
+</head>
+<body>
+<div id="app">
+  <div id="bar">
+    <select id="model" aria-label="Model"></select>
+    <div id="search-wrap">
+      <input id="search" type="search" placeholder="Search tag, cable, part..." autocomplete="off" aria-label="Search">
+      <div id="results" role="listbox"></div>
+    </div>
+    <button id="layers-btn" aria-expanded="false" aria-controls="layers">Layers</button>
+    <button id="legend-btn" aria-expanded="false" aria-controls="legend">Legend</button>
+  </div>
+  <div id="main">
+    <div id="view">
+      <div id="status">Loading...</div>
+      <div id="hover"></div>
+      <div id="layers" class="pop" aria-label="Layers"></div>
+      <div id="legend" class="pop" aria-label="Legend"></div>
+    </div>
+    <div id="selbar">
+      <h2 id="sel-name"></h2>
+      <button id="zoom-btn" class="primary">Zoom</button>
+      <button id="info-btn" aria-expanded="false" aria-controls="info">Info</button>
+      <button id="clear-btn" aria-label="Clear selection" title="Clear selection (Esc)">&times;</button>
+    </div>
+    <aside id="info" aria-label="Details"></aside>
+    <p id="sel-live" class="sr-only" aria-live="polite"></p>
+  </div>
+</div>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "./vendor/three-0.169.0/controls/OrbitControls.js";
+import { GLTFLoader } from "./vendor/three-0.169.0/loaders/GLTFLoader.js";
+
+const $ = (id) => document.getElementById(id);
+
+// models.json next to this page: {"title": "...", "models": [{"key", "label", "url"}, ...]}.
+// URLs are relative to this page. The first model opens by default.
+const CONFIG = await fetch("models.json").then((r) => r.json());
+const MODELS = Object.fromEntries(CONFIG.models.map((m) => [m.key, m]));
+document.title = CONFIG.title || "Model Viewer";
+for (const m of CONFIG.models) $("model").add(new Option(m.label, m.key));
+const HIDDEN_KEYS = new Set(["name", "select"]);
+const HIGHLIGHT = new THREE.Color(0x00e5ff);  // cyan: no unit or line uses it
+
+const view = $("view"), statusEl = $("status"), selbar = $("selbar"), infoEl = $("info"), hoverEl = $("hover");
+const layersEl = $("layers"), legendEl = $("legend"), resultsEl = $("results"), searchEl = $("search");
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+view.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1d2024);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x50555c, 2.2));
+const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+sun.position.set(30, 60, 20);
+scene.add(sun);
+const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 2000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.screenSpacePanning = true;
+
+let root = null;        // the loaded glTF scene
+let pickables = [];     // meshes that can be selected
+let selected = [];      // meshes currently highlighted
+let legend = [];        // legend entries of the loaded model, each with its meshes
+let activeEntry = null; // the legend entry behind the current selection, if any
+let dimOthers = true;
+let infoOpen = false;    // the Info sheet is shown while something is selected; remembered
+try { infoOpen = localStorage.getItem("viewer.info") === "open"; } catch { /* no storage: closed */ }
+const original = new Map();  // mesh -> its own material, restored on clear
+const dimMaterial = new THREE.MeshStandardMaterial({ color: 0x8a9096, transparent: true, opacity: 0.12, depthWrite: false });
+
+function resize() {
+  const { clientWidth: w, clientHeight: h } = view;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / Math.max(h, 1);
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(view);
+
+function infoOf(obj) {
+  // Extras sit on the glTF node; GLTFLoader puts them in userData of that object or a parent.
+  for (let o = obj; o; o = o.parent) if (o.userData && o.userData.name) return o.userData;
+  return { name: obj.name || "Unnamed part" };
+}
+
+function selectKey(info) { return info.select || info.name; }
+
+// Camera moves glide (a jump loses the viewer's bearings); any drag or zoom takes over at once.
+const REDUCED_MOTION = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let glide = null;
+function moveCamera(target, position, instant) {
+  glide = { t0: performance.now(), fromT: controls.target.clone(), fromP: camera.position.clone(),
+    toT: target, toP: position };
+  if (instant || REDUCED_MOTION) stepGlide(Infinity);
+}
+function stepGlide(now) {
+  if (!glide) return;
+  const k = Math.min(Math.max((now - glide.t0) / 350, 0), 1), ease = 1 - (1 - k) ** 3;
+  controls.target.lerpVectors(glide.fromT, glide.toT, ease);
+  camera.position.lerpVectors(glide.fromP, glide.toP, ease);
+  if (k === 1) glide = null;
+}
+controls.addEventListener("start", () => { glide = null; });
+
+function centreOf(objects) {
+  const box = new THREE.Box3();
+  objects.forEach((o) => box.expandByObject(o));
+  return box.isEmpty() ? null : box.getCenter(new THREE.Vector3());
+}
+
+// The orbit pivot follows the selection, so rotating turns around what was picked instead of
+// swinging it out of view. The camera stays put and turns to face it; a part outside the
+// canvas (or behind the camera) is framed instead.
+function pivotTo(objects) {
+  const c = centreOf(objects);
+  if (!c) return;
+  const p = c.clone().project(camera);
+  // NaN (centre on the camera plane) and a centre almost at the camera would leave a pivot the
+  // camera cannot orbit or zoom from: frame instead.
+  if (!(Math.abs(p.x) <= 0.9 && Math.abs(p.y) <= 0.9 && p.z <= 1) || c.distanceTo(camera.position) < camera.near * 20) {
+    frame(objects, true); return;
+  }
+  moveCamera(c, camera.position.clone());
+}
+
+function frame(objects, closeUp, instant) {
+  const box = new THREE.Box3();
+  objects.forEach((o) => box.expandByObject(o));
+  if (box.isEmpty()) return;
+  const centre = box.getCenter(new THREE.Vector3());
+  // A close-up keeps the current viewing direction; a fresh model gets the default one.
+  const dir = instant ? new THREE.Vector3(1, 0.6, 1).normalize()
+    : camera.position.clone().sub(controls.target).normalize();
+  if (!(dir.lengthSq() > 1e-12)) dir.set(1, 0.6, 1).normalize();  // camera on the pivot
+  let dist;
+  if (closeUp) {
+    // Fit the bounding sphere inside the narrower field of view (a phone canvas is portrait).
+    const r = box.getBoundingSphere(new THREE.Sphere()).radius;
+    const half = THREE.MathUtils.degToRad(camera.fov) / 2;
+    const fit = Math.min(half, Math.atan(Math.tan(half) * camera.aspect));
+    dist = Math.max(1.25 * r / Math.sin(fit), 2);
+  } else {
+    dist = Math.max(box.getSize(new THREE.Vector3()).length() * 0.75, 10);
+  }
+  // Cover both ends of the glide: a far plane for the close-up alone clips the model at the start.
+  const from = instant ? dist : camera.position.distanceTo(centre);
+  camera.near = Math.min(dist, from) / 500; camera.far = Math.max(dist, from) * 50;
+  camera.updateProjectionMatrix();
+  moveCamera(centre, centre.clone().addScaledVector(dir, dist), instant);
+}
+
+let clones = [];  // highlight materials of the current selection, disposed on the next change
+function applyMaterials() {
+  clones.forEach((c) => c.dispose());
+  clones = [];
+  const sel = new Set(selected);
+  for (const m of pickables) {
+    const own = original.get(m);
+    if (sel.has(m)) {
+      const hl = own.clone();
+      clones.push(hl);
+      hl.emissive = HIGHLIGHT.clone();
+      hl.emissiveIntensity = 0.8;
+      hl.transparent = false; hl.opacity = 1; hl.depthWrite = true;
+      m.material = hl;
+    } else if (dimOthers && selected.length && infoOf(m).Group !== "Tag plates") {
+      m.material = dimMaterial;  // the legend board fades too: the Legend dropdown carries its key
+    } else {
+      m.material = own;
+    }
+  }
+}
+
+function select(mesh) {
+  activeEntry = null;
+  markLegend();
+  if (!mesh) { selected = []; applyMaterials(); showSelection(null); return; }
+  const key = selectKey(infoOf(mesh));
+  history.replaceState(null, "", `#${$("model").value}/${encodeURIComponent(key)}`);
+  selected = pickables.filter((m) => selectKey(infoOf(m)) === key);
+  applyMaterials();
+  showSelection(infoOf(mesh));  // sizes the canvas first: the bar may have just appeared
+  pivotTo(selected);
+}
+
+function selectEntry(entry) {
+  const visible = entry.meshes.filter((m) => m.visible);  // like search: hidden layers stay hidden
+  if (!visible.length) return;
+  history.replaceState(null, "", `#${$("model").value}`);
+  selected = visible;
+  activeEntry = entry;
+  markLegend();
+  applyMaterials();
+  showSelection(entry.section ? { name: entry.label, Section: entry.section } : { name: entry.label });
+  frame(selected, true);
+}
+
+function clearSelection() {
+  select(null);
+  history.replaceState(null, "", `#${$("model").value}`);
+}
+
+function showSelection(info) {
+  selbar.classList.toggle("open", Boolean(info));
+  selbar.dataset.selected = selected.length;
+  infoEl.classList.toggle("open", Boolean(info) && infoOpen);
+  infoEl.innerHTML = "";
+  if (info) {
+    const name = info.select || info.name;
+    $("sel-name").textContent = name;
+    $("sel-name").title = name;
+    $("sel-live").textContent = `Selected: ${name}`;  // always rendered, so readers announce it
+    const h = document.createElement("h3"); h.textContent = name;
+    const dl = document.createElement("dl");
+    for (const [k, v] of Object.entries(info).filter(([k]) => !HIDDEN_KEYS.has(k))) {
+      const dt = document.createElement("dt"); dt.textContent = k;
+      const dd = document.createElement("dd"); dd.textContent = v;
+      dl.append(dt, dd);
+    }
+    const hint = document.createElement("p"); hint.className = "hint";
+    hint.textContent = (selected.length > 1 ? `${selected.length} parts highlighted. ` : "")
+      + "Drag turns around the selection; Esc clears it.";
+    infoEl.append(h, dl, hint);
+  }
+  // Both are docked, so they resize the canvas: size the camera now, before any framing.
+  resize();
+}
+
+$("zoom-btn").onclick = () => frame(selected, true);
+$("clear-btn").onclick = () => clearSelection();
+$("info-btn").setAttribute("aria-expanded", String(infoOpen));
+$("info-btn").onclick = () => {
+  infoOpen = !infoOpen;
+  try { localStorage.setItem("viewer.info", infoOpen ? "open" : "closed"); } catch { /* not kept */ }
+  $("info-btn").setAttribute("aria-expanded", String(infoOpen));
+  infoEl.classList.toggle("open", infoOpen && selected.length > 0);
+  resize();
+};
+
+function buildLayers() {
+  const groups = new Map();
+  for (const m of pickables) {
+    const g = infoOf(m).Group || "Other";
+    if (!groups.has(g)) groups.set(g, []);
+    groups.get(g).push(m);
+  }
+  layersEl.innerHTML = "<h3>Show</h3>";
+  for (const [g, meshes] of groups) {
+    const label = document.createElement("label");
+    const box = document.createElement("input"); box.type = "checkbox"; box.checked = true;
+    box.onchange = () => meshes.forEach((m) => { m.visible = box.checked; });
+    label.append(box, document.createTextNode(`${g} (${meshes.length})`));
+    layersEl.appendChild(label);
+  }
+  const dim = document.createElement("label"); dim.id = "dim-row";
+  const dimBox = document.createElement("input"); dimBox.type = "checkbox"; dimBox.checked = dimOthers;
+  dimBox.onchange = () => { dimOthers = dimBox.checked; applyMaterials(); };
+  dim.append(dimBox, document.createTextNode("Fade everything except the selection"));
+  layersEl.appendChild(dim);
+}
+
+// The builder's key (scene extras.legend, written by glb.py) or, without one, one entry per
+// plain-coloured material, named after the material.
+function legendData() {
+  if (root.userData.legend) return root.userData.legend;
+  const seen = new Map();  // keyed by material object: foreign files reuse or omit names
+  for (const m of pickables) {
+    const mat = original.get(m);
+    if (mat.map || mat.emissiveMap) continue;
+    if (!seen.has(mat)) seen.set(mat, { label: mat.name || "Unnamed material",
+      colour: mat.color.getHexString(THREE.SRGBColorSpace), alpha: mat.opacity, meshes: [] });
+    seen.get(mat).meshes.push(m);
+  }
+  return { entries: [...seen.values()], notes: [] };
+}
+
+function buildLegend() {
+  const data = legendData();
+  const byMaterial = new Map();
+  for (const m of pickables) {
+    const name = original.get(m).name;
+    if (!byMaterial.has(name)) byMaterial.set(name, []);
+    byMaterial.get(name).push(m);
+  }
+  legend = (Array.isArray(data.entries) ? data.entries : []).map((e) => ({ ...e,
+    meshes: e.meshes ?? (e.materials || []).flatMap((n) => byMaterial.get(n) || []) }));
+  legendEl.innerHTML = "";
+  if (data.title) {
+    const t = document.createElement("h3"); t.textContent = data.title; legendEl.appendChild(t);
+  }
+  let section;
+  for (const entry of legend) {
+    if (entry.section && entry.section !== section) {
+      section = entry.section;
+      const h = document.createElement("h3"); h.textContent = section; legendEl.appendChild(h);
+    }
+    const row = document.createElement("button"); row.className = "legend-row";
+    const sw = document.createElement("span"); sw.className = "swatch";
+    const n = parseInt(entry.colour, 16);  // sRGB hex, used as is (THREE.Color would linearise it)
+    sw.style.background = `rgba(${n >> 16}, ${(n >> 8) & 255}, ${n & 255}, ${entry.alpha ?? 1})`;
+    sw.dataset.colour = entry.colour;
+    const label = document.createElement("span"); label.className = "label"; label.textContent = entry.label;
+    const count = document.createElement("span"); count.className = "count"; count.textContent = `${entry.meshes.length} parts`;
+    row.append(sw, label, count);
+    row.disabled = !entry.meshes.length;
+    row.onclick = () => { openPopover(null); selectEntry(entry); };
+    entry.row = row;
+    legendEl.appendChild(row);
+  }
+  for (const note of data.notes || []) {
+    const p = document.createElement("p"); p.className = "hint"; p.textContent = note; legendEl.appendChild(p);
+  }
+}
+
+function markLegend() {
+  for (const e of legend) e.row?.classList.toggle("active", e === activeEntry);
+}
+
+const POPOVERS = [[layersEl, $("layers-btn")], [legendEl, $("legend-btn")]];
+function openPopover(el) {
+  // Toggles el; any other dropdown closes. openPopover(null) closes all.
+  for (const [pop, btn] of POPOVERS) {
+    const open = pop === el && !pop.classList.contains("open");
+    pop.classList.toggle("open", open);
+    btn.setAttribute("aria-expanded", String(open));
+  }
+  if (el) resultsEl.style.display = "none";
+}
+$("layers-btn").onclick = () => openPopover(layersEl);
+$("legend-btn").onclick = () => openPopover(legendEl);
+
+// Search over names and every extras value; one result per selectable item.
+searchEl.addEventListener("input", () => {
+  openPopover(null);
+  const q = searchEl.value.trim().toLowerCase();
+  resultsEl.innerHTML = "";
+  if (q.length < 2) { resultsEl.style.display = "none"; return; }
+  const seen = new Set();
+  for (const m of pickables) {
+    const info = infoOf(m), key = selectKey(info);
+    if (seen.has(key) || !m.visible) continue;
+    if (!Object.values(info).some((v) => String(v).toLowerCase().includes(q))) continue;
+    seen.add(key);
+    const b = document.createElement("button"); b.textContent = key; b.setAttribute("role", "option");
+    b.onclick = () => { select(m); frame(selected, true); resultsEl.style.display = "none"; };
+    resultsEl.appendChild(b);
+    if (seen.size >= 40) break;
+  }
+  resultsEl.style.display = seen.size ? "block" : "none";
+});
+searchEl.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") resultsEl.querySelector("button")?.click();
+});
+
+// Picking: a left click or a one-finger tap selects. A drag, a right or middle click (pan and
+// zoom) and a pinch only move the camera and never change the selection.
+const ray = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+function pick(ev) {
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const hit = ray.intersectObjects(pickables.filter((m) => m.visible), false)
+    .find((h) => !(dimOthers && selected.length && h.object.material === dimMaterial));
+  return hit ? hit.object : null;
+}
+const pointers = new Set();  // pointers on the canvas now; a second finger makes it a pinch
+let down = null;
+renderer.domElement.addEventListener("pointerdown", (e) => {
+  if (e.isPrimary) pointers.clear();  // no other pointer is down: drop any whose release was lost
+  pointers.add(e.pointerId);
+  down = pointers.size === 1 && e.button === 0 ? { id: e.pointerId, x: e.clientX, y: e.clientY } : null;
+});
+renderer.domElement.addEventListener("pointercancel", (e) => { pointers.delete(e.pointerId); down = null; });
+renderer.domElement.addEventListener("pointerup", (e) => {
+  pointers.delete(e.pointerId);
+  const d = down;
+  down = null;
+  if (!d || d.id !== e.pointerId || e.button !== 0 || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6) return;
+  resultsEl.style.display = "none";
+  openPopover(null);
+  select(pick(e));
+});
+let hoverPending = null;
+renderer.domElement.addEventListener("pointermove", (e) => {
+  if (e.pointerType !== "mouse" || e.buttons) { hoverEl.style.display = "none"; return; }
+  hoverPending = e;
+});
+renderer.domElement.addEventListener("pointerleave", () => { hoverEl.style.display = "none"; hoverPending = null; });
+addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    clearSelection(); resultsEl.style.display = "none"; openPopover(null);
+  }
+  if (e.key === "f" && document.activeElement !== searchEl && selected.length) frame(selected, true);
+});
+
+function updateHover() {
+  if (!hoverPending) return;
+  const e = hoverPending; hoverPending = null;
+  const m = pick(e);
+  if (!m) { hoverEl.style.display = "none"; return; }
+  const r = view.getBoundingClientRect();
+  hoverEl.textContent = selectKey(infoOf(m));
+  hoverEl.style.display = "block";
+  hoverEl.style.left = `${Math.min(e.clientX - r.left + 14, r.width - hoverEl.offsetWidth - 4)}px`;
+  hoverEl.style.top = `${e.clientY - r.top + 14}px`;
+}
+
+function wantedName() {
+  // "#model/name" -> name; a malformed escape is treated as no name.
+  try { return decodeURIComponent(location.hash.split("/").slice(1).join("/")).toLowerCase(); }
+  catch { return ""; }
+}
+
+function disposeModel(obj) {
+  obj.traverse((o) => {
+    if (!o.isMesh) return;
+    o.geometry.dispose();
+    for (const m of [].concat(original.get(o) || o.material)) {
+      Object.values(m).forEach((v) => v && v.isTexture && v.dispose());
+      m.dispose();
+    }
+  });
+}
+
+let loadSeq = 0;  // only the most recent load may touch the scene (A, B, A switches)
+function load(key) {
+  const seq = ++loadSeq;
+  const model = MODELS[key];
+  statusEl.style.display = "block"; statusEl.textContent = `Loading ${model.label}...`;
+  select(null);
+  openPopover(null);
+  if (location.hash.slice(1).split("/")[0] !== key) history.replaceState(null, "", `#${key}`);
+  if (root) { scene.remove(root); disposeModel(root); root = null; }
+  pickables = []; original.clear(); legend = [];
+  layersEl.innerHTML = legendEl.innerHTML = "";
+  new GLTFLoader().load(model.url, (gltf) => {
+    if (seq !== loadSeq) { disposeModel(gltf.scene); return; }  // superseded by a later load
+    root = gltf.scene;
+    root.traverse((o) => {
+      if (o.isMesh) { pickables.push(o); original.set(o, o.material); }
+    });
+    scene.add(root);
+    buildLayers();
+    buildLegend();
+    frame([root], false, true);
+    statusEl.style.display = "none";
+    const wanted = wantedName();
+    const hit = wanted && (pickables.find((m) => selectKey(infoOf(m)).toLowerCase() === wanted)
+      || pickables.find((m) => selectKey(infoOf(m)).toLowerCase().includes(wanted)));
+    if (hit) { select(hit); frame(selected, true, true); }  // opening a link jumps, no glide
+    else history.replaceState(null, "", `#${key}`);
+  }, (p) => {
+    if (seq !== loadSeq) return;
+    if (p.total) statusEl.textContent = `Loading ${model.label}... ${Math.round(100 * p.loaded / p.total)} %`;
+  }, (err) => {
+    if (seq !== loadSeq) return;
+    statusEl.textContent = `Could not load ${model.url}. The viewer needs its local server (see the project's launcher command).`;
+    console.error(err);
+  });
+}
+
+$("model").onchange = (e) => load(e.target.value);
+// Deep link: #<model> or #<model>/<name> (selects the first item whose name matches).
+const hashModel = location.hash.slice(1).split("/")[0];
+const start = Object.hasOwn(MODELS, hashModel) ? hashModel : CONFIG.models[0].key;
+$("model").value = start;
+load(start);
+
+// Read by check_viewer.sh: where the orbit pivot is going (headless browsers barely run
+// animation frames, so a glide may never finish there) and the selection centre, in model units.
+window.viewerState = () => ({ pivot: (glide ? glide.toT : controls.target).toArray(),
+  selection: centreOf(selected)?.toArray() ?? null });
+
+renderer.setAnimationLoop(() => {
+  stepGlide(performance.now());  // the frame timestamp can run behind performance.now()
+  controls.update();
+  updateHover();
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>

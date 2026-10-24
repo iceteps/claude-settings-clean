@@ -1,0 +1,75 @@
+{
+  "model": "opus",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/pre-commit-verify.sh",
+            "timeout": 600
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/workflow-log-guard.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/doctrine-nudge.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "impeccable@impeccable": true,
+    "figma@claude-plugins-official": false,
+    "data@synced": false,
+    "product-management@synced": false,
+    "productivity@synced": false,
+    "engineering@synced": false,
+    "design@synced": false
+  },
+  "extraKnownMarketplaces": {
+    "impeccable": {
+      "source": {
+        "source": "github",
+        "repo": "pbakaus/impeccable"
+      }
+    }
+  },
+  "modelSettings": {
+    "claude-fable-5-1": {
+      "effortLevel": "xhigh"
+    }
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "$HOME/.claude/statusline.sh"
+  },
+  "tui": "fullscreen",
+  "skipDangerousModePermissionPrompt": true,
+  "skipWorkflowUsageWarning": true,
+  "theme": "dark",
+  "switchModelsOnFlag": false,
+  "agentPushNotifEnabled": true,
+  "env": {
+    "IMPECCABLE_DOWNLOAD_BASE": "https://download-blocked.invalid",
+    "IMPECCABLE_NO_TELEMETRY": "1",
+    "IMPECCABLE_NO_UPDATE_CHECK": "1"
+  }
+}

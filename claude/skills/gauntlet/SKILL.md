@@ -1,0 +1,62 @@
+---
+name: gauntlet
+description: The owner's standing acceptance process for EVERY non-trivial change batch, in ANY project — loop implementation → adversarial review → fixes until SHIP, then the project's full verification bar (static gates + tests) before any commit. Use whenever a batch is about to be reviewed, verified, or committed. A project-local gauntlet skill (e.g. the reference project's) takes precedence and carries the project-specific bar.
+---
+
+# gauntlet — loop until it passes the bar, including tests
+
+Owner's standing rule (established on the reference project, 2026-08-28, made global 2026-08-29):
+one review pass is not acceptance, and "the linter is green" is not the bar —
+the bar includes the project's tests and honest reporting.
+
+## The loop
+
+1. **Implement** — inline, a lane, or a workflow Fix phase.
+2. **Adversarial review** — a reviewer agent that verifies claims against the
+   REAL diff, not the implementer's summary, and runs whatever checks it can.
+   Verdicts: SHIP / SHIP_WITH_FIXES / BLOCK, with file-exact findings.
+3. **Apply every finding** — or justify each skip explicitly in the report.
+   Blockers and majors are never skipped.
+4. **Re-review the fixed state.** Repeat 2–4 until SHIP with zero
+   blockers/majors. A minor fix may land without a full re-review round IF the
+   fix itself is verified (run the affected test/gate).
+
+## The bar (before any commit)
+
+Discover and run the PROJECT'S OWN verification stack — do not invent one:
+package scripts (`verify`, `lint`, `test`, `typecheck`), CI workflow steps,
+a Makefile, a project verification skill. Run all of it, and read outputs
+against known baselines rather than trusting exit codes. If the project
+defines its own gauntlet/verify skill, that skill's bar wins.
+The bar always includes the test suite when one exists; "tests are broken as
+a gate" is a finding to FIX (pin the env, repair the drift), not an excuse.
+
+## Rules learned the hard way
+
+- **Failure triage is stash-proven, never assumed.** A failing test after your
+  change is yours until `git stash` + rerun on clean HEAD proves the failure
+  identical. Pre-existing failures don't excuse the batch — the gauntlet fixes
+  them too (spec drift → update the test to CURRENT behavior without weakening
+  its intent; real regression → fix or escalate to the owner).
+- **A test wrapped in `if (visible/exists)` guards is vacuous** — it passes
+  when the feature vanishes. Replace with hard assertions whenever you touch
+  one; expect the hard assertion to FAIL first (that is it proving the old
+  test never ran), then make the scenario real.
+- **A reviewer's suggested fix is a claim too** — verify it against source
+  before applying.
+- **Report each iteration honestly**: findings, fixes, explicit skips. State
+  each verification layer's result separately — never collapse to "green".
+- **Docs and design batches run the same loop** — adversarial review catches
+  off-spec values, broken references, and bad copy the same way it catches bugs.
+
+## Then, and only then
+
+Commit per the project's convention and push.
+
+## Doctrine skills the reviewer should load
+
+Match the diff to the ground it touches — `honest-numbers` (figures, money,
+exports), `offline-first-writes` (queues, retries, sync), `gate-scripts` (a
+violation CLASS, which wants a gate rather than a correction). A reviewer that
+has not read the relevant one will pass code that violates a rule already paid
+for once.

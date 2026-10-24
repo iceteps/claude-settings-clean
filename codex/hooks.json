@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "'~/.codex/hooks/pre-commit-verify.sh'",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "'~/.codex/hooks/doctrine-nudge.sh'",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# Package global Claude Code skills to share with another person.
+#
+#   pack-skills SKILL [SKILL...]        e.g. pack-skills cad-model-views eplan-drawings
+#
+# Writes ~/Documents/share/claude-skills-<names>-<date>.tar.gz plus a .sha256 next to it.
+# The archive holds the skill folders and an INSTALL.md. Before packing it REFUSES if any
+# file contains personal or client markers (home path, user name, e-mail, the extra patterns
+# in ~/.claude/pack-skills.deny, one regex per line), so project data cannot leak.
+set -euo pipefail
+[ $# -ge 1 ] || { sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+SRC=~/.claude/skills
+OUT=~/Documents/share
+STAMP=$(date +%Y%m%d)
+NAME="claude-skills-$(IFS=-; echo "$*")-${STAMP}"
+STAGE=$(mktemp -d)
+trap 'rm -rf "$STAGE"' EXIT
+
+DENY=("$HOME" "$(whoami)" "$(git config user.email 2>/dev/null || echo NOEMAIL)")
+[ -f ~/.claude/pack-skills.deny ] && mapfile -t -O "${#DENY[@]}" DENY < <(grep -v '^\s*\(#\|$\)' ~/.claude/pack-skills.deny)
+
+mkdir -p "$STAGE/$NAME/skills" "$OUT"
+for s in "$@"; do
+  [ -f "$SRC/$s/SKILL.md" ] || { echo "no such skill: $s" >&2; exit 1; }
+  rsync -a --exclude '__pycache__' --exclude '*.pyc' "$SRC/$s" "$STAGE/$NAME/skills/"
+done
+
+leaks=0
+for pat in "${DENY[@]}"; do
+  [ -n "$pat" ] || continue
+  if hits=$(grep -rIl -E -- "$pat" "$STAGE/$NAME/skills" 2>/dev/null); then
+    echo "LEAK ($pat):"; echo "$hits" | sed "s|$STAGE/$NAME/||; s|^|  |"; leaks=1
+  fi
+done
+[ "$leaks" = 0 ] || { echo "refusing to pack: remove the markers above first" >&2; exit 1; }
+
+{
+  echo "# Claude Code skills: $*"
+  echo
+  echo "Packed $(date +%F). Each folder under \`skills/\` is one skill."
+  echo
+  echo "## Install"
+  echo
+  echo '```'
+  echo "mkdir -p ~/.claude/skills"
+  echo "cp -r skills/* ~/.claude/skills/"
+  echo '```'
+  echo
+  echo "Restart Claude Code. The skills load when a request matches their description, or when"
+  echo "you name them (\"use the cad-model-views skill\"). Read each SKILL.md: its first section"
+  echo "lists the tools it needs."
+  echo
+  echo "## What each skill needs"
+  echo
+  for s in "$@"; do
+    desc=$(sed -n 's/^description: //p' "$SRC/$s/SKILL.md" | head -1)
+    echo "- **$s**: ${desc:0:300}"
+  done
+  echo
+  echo "Common tools: python3 with numpy and pillow, poppler (pdftotext, pdftoppm, pdfinfo),"
+  echo "FreeCAD (freecadcmd) and F3D for CAD work, and Chromium for the viewer checks. Third-party"
+  echo "code bundled inside a skill (for example three.js under viewer/vendor) keeps its licence"
+  echo "and a SHA256SUMS file: run \`sha256sum -c SHA256SUMS\` in that folder."
+} > "$STAGE/$NAME/INSTALL.md"
+
+tar -C "$STAGE" -czf "$OUT/$NAME.tar.gz" "$NAME"
+(cd "$OUT" && sha256sum "$NAME.tar.gz" > "$NAME.tar.gz.sha256")
+echo "$OUT/$NAME.tar.gz"
+cat "$OUT/$NAME.tar.gz.sha256"
