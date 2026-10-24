@@ -164,8 +164,9 @@ before any rule covered it. Pass rates: `comply list`.
   corrections, 2026-08-29..31: *"we are working DRY and always reusing existing elements
   and components"*, *"why dont you use the same whatsapp modal"*.
 - **Stay inside the declared boundary.** When the owner fences the work (a folder, an app,
-  a branch, a collaborator's changes), write the fence into the project's CLAUDE.md the
-  same turn; an edit outside it needs a fresh yes. Six corrections: *"we dont touch the
+  a branch, a collaborator's changes), write the fence the same turn into the project's
+  `.claude/fence.json` (`allow`/`deny` globs, `why`, `declared`) and one line in its
+  CLAUDE.md. The `boundary-fence.py` hook then asks the owner before any edit outside it. Six corrections: *"we dont touch the
   web at all !!"*, *"it touches only mobile files !!"*.
 - **Finish the whole request.** Number every item the owner asked for; the final report
   marks each done or NOT DONE. "Finish" or "push" covers the whole list, so do not stop at

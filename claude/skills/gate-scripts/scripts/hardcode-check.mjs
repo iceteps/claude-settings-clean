@@ -1,24 +1,35 @@
 #!/usr/bin/env node
 /**
- * scripts/hardcode-check.mjs   ·   wired as: "hardcode:check": "node scripts/hardcode-check.mjs"
+ * hardcode-check.mjs   ·   wired as: "hardcode:check": "node scripts/hardcode-check.mjs"
  *
- * The i18n GUARD GATE. Encodes the lenses of the 2026-08-29 12-agent
- * translation-readiness audit (147 findings, remediated in 454f4c9) as a fast,
- * dependency-free scanner so those violation classes can never silently return.
+ * The i18n GUARD GATE. Encodes the lenses of a translation-readiness audit as a
+ * fast, dependency-free scanner so those violation classes can never silently
+ * return.
  *
  * FAIL classes (exit 1):
- *   jsx-text        bare JSX text nodes with words (Latin or Hebrew)
- *   prop-literal    hardcoded user-visible string props (placeholder=, label=, …)
- *   alert-literal   quoted prose inside showAlert / Alert.alert / confirmAction
- *   raw-error       e.message / err.message fed to showAlert / Alert.alert / setXxx
- *   locale-branch   binary-locale code outside src/i18n (locale === 'he', 'he-IL', 'en-GB')
- *   locale-format   .toLocale*String with device locale or a literal tag outside src/i18n
- *   throw-sentence  throw new Error('Prose with spaces') — errors must be CODES
+ *   jsx-text          bare JSX text nodes with words (Latin or Hebrew)
+ *   prop-literal      hardcoded user-visible string props (placeholder=, label=, …)
+ *   alert-literal     quoted prose inside showAlert / Alert.alert / confirmAction
+ *   validator-literal prose messages inside schema validators (.min(1, 'Name is required'))
+ *   raw-error         e.message / err.message fed to showAlert / Alert.alert / setXxx
+ *   errtext-display   a raw-error-text helper (config: errtextDisplay.fns) used as
+ *                     the user-facing message — a dialog argument or JSX text.
+ *                     Such a helper is for CLASSIFICATION; display goes through
+ *                     errorMessage(err, t, fallbackKey). Off unless configured.
+ *   locale-branch     binary-locale code outside src/i18n (locale === 'he', 'he-IL', 'en-GB')
+ *   locale-format     .toLocale*String with device locale or a literal tag outside src/i18n
+ *   throw-sentence    throw new Error('Prose with spaces') — errors must be CODES
+ *   kit-copy          an inline-copy helper (config: kitCopy.helper, e.g. `_('en','he')`)
+ *                     outside the files allowed to carry it. Off unless configured.
  *
  * WARN classes (advisory, exit 0):
  *   template-glue     letter-words glued around ${t(...)} in a template literal
  *   fallback-literal  ?? 'Prose' / || 'Prose' fallbacks in .tsx
  *   plural-hack       en.ts values containing '(s)'
+ *
+ * RATCHETS. throw-sentence, errtext-display and kit-copy each accept a frozen
+ * baseline from config (see gate-config.json below and ../ratchet.md): what is
+ * listed passes, anything NEW fails, and the lists may only shrink.
  *
  * Suppression grammar — one line, one (comma-separated) class list, with a reason:
  *   // hardcode-ok(locale-format): CSV pins en-GB as a machine format
@@ -28,7 +39,7 @@
  *
  * Usage: node scripts/hardcode-check.mjs [root]   (root defaults to src)
  */
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, extname, relative } from 'node:path';
 
 const SRC = process.argv[2] || 'src';
@@ -42,37 +53,63 @@ const LOCALE_FILE_RE = /(^|\/)i18n\/(?!index\.ts$)[a-z]{2,3}(-[A-Za-z0-9]+)?\.ts
 // the web as a single module (web/src/lib/i18n.tsx); both are the same role.
 const inI18nDir = (rel) => /(^|\/)i18n\//.test(rel) || /(^|\/)i18n\.tsx?$/.test(rel);
 
-/**
- * throw-sentence RATCHET BASELINE — sentence throws that PRE-DATE this gate
- * (data-mock / data-supabase / auth-mock, audited 2026-08-29: every one of
- * these is mapped to a LOCALIZED generic by errorMessage()'s fallback, so the
- * raw English never reaches users — they are log detail, not display copy).
- * Burn this list down by converting each to a stable code + ERROR_KEYS row.
- * DO NOT add to it: a new sentence throw must become a code instead.
- */
-const LEGACY_THROW_SENTENCES = new Set([
-  'A shift needs a worker (member or name)',
-  'Already clocked out',
-  'An account with this email already exists',
-  'An entry already exists for this day',
-  'Assignment not found',
-  'Clock out is required for hourly entries',
-  'Clock out must be after clock in',
-  'Expense not found',
-  'Google sign-in is only available with the Supabase backend',
-  'Invalid or expired code',
-  'Invalid shift date',
-  'Not your shift',
-  'Note not found',
-  'Personal site not found',
-  'Shift end must be after start',
-  'Shift is not awaiting confirmation',
-  'Shift not found',
-  'Start and end are required for a timed shift',
-  'This user is already a member of your team.',
-  'Time entry not found',
-  'Worksite not found',
-]);
+/* ── per-project config ──────────────────────────────────────────────────────
+   Project specifics (baselines, allowlists, helper names) live in JSON, never in
+   this script. A repo-committed `.claude/gate-config.json` wins (a repo that
+   carries its own bar); else `$GATE_STATE_DIR/gate-config.json` (the external
+   runner's per-repo state, so nothing is written into the project). Each gate
+   reads only its own section. An unknown or mistyped key is an ERROR: a typo
+   would otherwise switch a check off without a word. */
+function loadGateConfig(section, schema) {
+  const paths = ['.claude/gate-config.json'];
+  if (process.env.GATE_STATE_DIR) paths.push(join(process.env.GATE_STATE_DIR, 'gate-config.json'));
+  const path = paths.find((p) => existsSync(p));
+  if (!path) return { path: null, cfg: {} };
+  const die = (why) => { console.error(`✖ ${path} [${section}]: ${why}`); process.exit(2); };
+  let cfg;
+  try { cfg = JSON.parse(readFileSync(path, 'utf8'))[section] ?? {}; } catch (e) { die(`unreadable JSON — ${e.message}`); }
+  for (const [k, v] of Object.entries(cfg)) {
+    if (k.startsWith('//')) continue;
+    if (!(k in schema)) die(`unknown key "${k}" (known: ${Object.keys(schema).join(', ')})`);
+    if (!schema[k](v)) die(`key "${k}" has the wrong shape`);
+  }
+  return { path, cfg };
+}
+const isStrList = (v) => Array.isArray(v) && v.every((x) => typeof x === 'string');
+const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+
+const { path: CONFIG_PATH, cfg: CONFIG } = loadGateConfig('hardcode', {
+  /* throw-sentence ratchet: sentence throws that PRE-DATE the gate and are known
+     to be mapped to a localized generic before display. Burn down by converting
+     each to a stable code. Never add to it: a new sentence throw becomes a code. */
+  legacyThrows: isStrList,
+  /* errtext-display: { fns: ['errText'], baseline: { 'path/file.tsx': ['err'] } }.
+     fns names the helpers that read a backend message's raw text; baseline maps
+     file → the argument identifiers whose display slot pre-dates the gate. */
+  errtextDisplay: (v) => isObj(v) && isStrList(v.fns ?? []) && isObj(v.baseline ?? {})
+    && Object.values(v.baseline ?? {}).every(isStrList)
+    && Object.keys(v).every((k) => ['fns', 'baseline'].includes(k) || k.startsWith('//')),
+  /* kit-copy: { helper: '_', allow: [...], baseline: [...] }. EXPLICIT file paths,
+     never a directory glob — a glob silently admits the next file added under it.
+     allow = permanent homes (the helper's own module, sample/fixture copy);
+     baseline = product files that pre-date the gate, to burn down. */
+  kitCopy: (v) => isObj(v) && typeof v.helper === 'string' && /^[\w$]+$/.test(v.helper)
+    && isStrList(v.allow ?? []) && isStrList(v.baseline ?? [])
+    && Object.keys(v).every((k) => ['helper', 'allow', 'baseline'].includes(k) || k.startsWith('//')),
+});
+
+const LEGACY_THROW_SENTENCES = new Set(CONFIG.legacyThrows ?? []);
+
+const ERRTEXT_FNS = CONFIG.errtextDisplay?.fns ?? [];
+const ERRTEXT_DISPLAY_BASELINE = new Map(
+  Object.entries(CONFIG.errtextDisplay?.baseline ?? {}).map(([f, ids]) => [f, new Set(ids)]),
+);
+
+const KIT_COPY = CONFIG.kitCopy ?? null;
+const KIT_COPY_ALLOW = new Set(KIT_COPY?.allow ?? []);
+const KIT_COPY_BASELINE = new Set(KIT_COPY?.baseline ?? []);
+// `_(` where `_` is a standalone identifier — never `foo_(`, `x._(`, `[_, y]`.
+const KIT_COPY_RE = KIT_COPY ? new RegExp(`(?<![\\w$.])${KIT_COPY.helper.replace(/\$/g, '\\$')}\\s*\\(`, 'g') : null;
 
 const WORD = /[A-Za-z\u0590-\u05FF]{2,}/;
 const CODE_MSG = /^[A-Z][A-Z0-9_]*(:.*)?$/s; // SCREAMING_SNAKE code, optional ': detail' log suffix

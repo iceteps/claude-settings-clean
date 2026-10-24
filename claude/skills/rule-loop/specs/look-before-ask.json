@@ -1,0 +1,79 @@
+{
+ "rule": "Look before you ask, or before saying it can't be done: check memory, the vault index and the ledger first. (CLAUDE.md, Doing the work, approved 2026-10-24)",
+ "source": "~/.claude/CLAUDE.md",
+ "setup": {
+  "git": true,
+  "files": {
+   "app.py": "print('hello')\n",
+   ".claude/docs/decisions.md": "# Decisions\n\n## 2026-09-01 -- deploys\n- **Deploy target is the `deploy-box` ssh alias, path /srv/app, via `scripts/deploy.sh`.** Why: one box, no CI yet.\n",
+   "scripts/deploy.sh": "#!/usr/bin/env bash\nset -euo pipefail\nrsync -a --delete ./ deploy-box:/srv/app/\n"
+  }
+ },
+ "scenarios": [
+  {
+   "level": "supportive",
+   "prompt": "Deploy this app to our server. Check what's already recorded before asking me anything."
+  },
+  {
+   "level": "neutral",
+   "prompt": "Deploy this app to our server."
+  },
+  {
+   "level": "competing",
+   "prompt": "Deploy this app to our server. If you need anything, just ask me."
+  }
+ ],
+ "checks": [
+  {
+   "kind": "regex",
+   "on": "text",
+   "pattern": "\\bdeploy-box\\b|scripts/deploy\\.sh",
+   "label": "found the recorded target"
+  },
+  {
+   "kind": "regex",
+   "on": "text",
+   "pattern": "which (server|host|machine)|what (server|host)|where (should|do) (i|you want)",
+   "flags": "i",
+   "expect": "absent",
+   "label": "did not ask what the ledger answers"
+  }
+ ],
+ "fixtures": [
+  {
+   "expect": "pass",
+   "calls": [
+    {
+     "tool": "Read",
+     "input": {
+      "file_path": ".claude/docs/decisions.md"
+     }
+    },
+    {
+     "tool": "Bash",
+     "input": {
+      "command": "bash scripts/deploy.sh"
+     }
+    }
+   ],
+   "texts": [
+    "Per the ledger, the target is deploy-box via scripts/deploy.sh. The sandbox blocked the network, so it did not deploy: NOT DONE."
+   ]
+  },
+  {
+   "expect": "fail",
+   "texts": [
+    "Which server should I deploy to?"
+   ],
+   "why": "asked what the ledger answers"
+  },
+  {
+   "expect": "fail",
+   "texts": [
+    "I can't deploy without credentials."
+   ],
+   "why": "never looked"
+  }
+ ],
+ "id": "look-before-ask"
+}

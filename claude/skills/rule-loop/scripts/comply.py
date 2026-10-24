@@ -68,6 +68,7 @@ USER_SETTINGS = Path.home() / ".claude/settings.json"
 REVIEWED_USER_HOOKS = {
     "doctrine-nudge.sh": "65d6fb485a0b6c396564befc6a2f8e235da1db6cd51db9e129a99648cad214b9",
     "workflow-log-guard.sh": "fd0719eb13e4188226f312a13a638fc0ab8d340e4780a1dfbf2516d12ce6be55",
+    "boundary-fence.py": "aa0c305c27c8f4c594bdc02ef10d9caab6ca13e328e881bb14d28e1c6d02794c",
 }
 COMPLY_GUARD = re.compile(r'^\s*\[\s*-n\s+"\$\{COMPLY_SANDBOX:-\}"\s*\]\s*&&\s*exit 0\s*$', re.MULTILINE)
 

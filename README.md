@@ -16,6 +16,7 @@ preferences removed, so it updates whenever the source does.
 | `claude/hooks/` | Pre-commit verification, append-only log guard, doctrine nudges |
 | `claude/bin/` | `gates` (run quality gates without installing into a repo), `pack-skills` |
 | `codex/` | The same rules wired for Codex (`AGENTS.md` points at `CLAUDE.md`) |
+| `tools/impeccable-engine/` | Build the impeccable plugin's engine from pinned source instead of letting it download a binary |
 
 ## Install
 

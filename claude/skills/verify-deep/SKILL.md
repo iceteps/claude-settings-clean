@@ -1,12 +1,14 @@
 ---
 name: verify-deep
-description: The full verification pass for ANY project — the project's automatic gates PLUS the hand audits gates are blind to, honest exit-code capture, drift checks that include test helpers, and the standing principle that every audit lens gets turned into a cheap mechanical gate. Run before every commit batch. A project-local verify-deep skill takes precedence and carries the project's concrete bar.
+description: The full verification pass for ANY project — the project's automatic gates PLUS the hand audits gates are blind to, honest exit-code capture (an errored run is never a pass), proof that every check can fail, drift checks that include test helpers, and the standing principle that every audit lens gets turned into a cheap mechanical gate. Run before every commit batch. A project-local verify-deep skill takes precedence and carries the project's concrete bar.
 ---
 
 # verify-deep — the gates, plus what the gates are blind to (global standard)
 
 Automatic gates are necessary, never sufficient. This is the method that made "verify is
-green" mean something (established on the reference project 2026-08; the owner's standing bar since).
+green" mean something (established on the reference project 2026-08-19, after the owner asked "no hardcoded
+styling nor strings!?" and the honest answer was "the gates don't check that"; the owner's
+standing bar since).
 
 ## 1. Run the project's gates — and READ them, don't exit-code them
 
@@ -17,15 +19,28 @@ green" mean something (established on the reference project 2026-08; the owner's
 - **Capture the real exit code.** Piping a suite through `tail`/`grep`/`head` makes the
   pipeline's exit the LAST command's — a 19-failure run once printed as green this way.
   Pattern: `suite > out.txt 2>&1; echo "EXIT=$?" >> out.txt` and read both.
+- **An errored run is an error, never a pass.** A run that ended in a crash, a timeout, a
+  usage/rate limit or an empty output proved nothing: record it as ERROR, rerun it, and
+  never count it toward a pass rate.
+- Advisory counts (orphan keys, skipped tests, WARN findings) are ratchets too: account for
+  every CHANGE vs the previous run — a new one is either deliberate or a bug.
+- Know what each gate EXCLUDES. Code outside the type-check/lint scope (separate services,
+  edge functions, scripts) gets at least a syntax check plus a careful re-read, and the
+  report says that is all it got. A test project that cannot run on this host is uncovered,
+  not passing.
 
 ## 2. Hand-audit the DIFF for what gates can't see
 
-Scope to the change (`git diff <base>` + untracked new files), not the tree:
+Scope to the change (`git diff <base>` + untracked new files), not the tree. Grep only the
+ADDED lines: `git diff <base> | grep '^+' | grep -v '^+++' | grep -E '<pattern>'`.
 - Hardcoded user-visible strings — in JSX/markup text AND in props/arguments (placeholders,
   dialog titles, accessibility labels, share/notification/export content, filenames).
-- Hardcoded colors/styles outside the design system; every hit needs a justification.
+- Hardcoded colors/styles outside the design system; every hit needs a justification. The
+  usual legitimate class: marks drawn over user MEDIA (a play glyph or caption on a photo) —
+  the photo is the same in light and dark mode, so a theme token would be wrong half the time.
 - For each i18n key the diff touches: exists in EVERY locale file, placeholders match, the
-  non-source values are real translations (not copied source language).
+  non-source values are real translations (not copied source language). A typed catalog
+  proves the key SET, not that a key the code USES exists — casts slip past the compiler.
 - Raw error objects reaching users (`e.message` in an alert/setter) — the policy is stable
   codes translated at the catch site.
 - Assertion drift: grep the WHOLE test dir — specs AND helpers — for every changed
@@ -45,7 +60,22 @@ file:line output) wired into the project's verify chain:
 - Prove the gate by INJECTION: recreate each violation class the audit caught and show the
   script catches every one; a gate you haven't proven blind-spot-free is decoration.
 Agent audits are then reserved for discovering NEW classes — after which those become gates
-too. Audit once, gate forever.
+too. Audit once, gate forever. Once a lens is a gate, its §2 hand-grep drops to a spot-check.
+
+## 3a. Prove every check can fail
+
+Rule-loop measurement work, 2026-10-24: a check that has never failed has not been shown to
+check anything.
+- **A suite that passes 100% on its first run more often means a weak check than a perfect
+  target.** Before trusting any check (a test, a gate, a compliance spec), feed it a
+  known-bad input and watch it fail; keep that input as a fixture the suite replays. A check
+  not yet shown able to fail is reported as INFO, never counted as a pass.
+- Read a sample of PASSING results, not only the failures.
+- **Probes that depend on a model's willingness must be planted, not requested.** A
+  sandbox-escape or permission probe the agent is asked to type itself gets quietly edited
+  (the dangerous step dropped) and passes for the wrong reason. Plant it as a script the
+  agent merely runs, and assemble its success markers at run time so reading the script
+  cannot forge a passing line.
 
 ## 3b. Native-runtime behavior is NOT provable by code review or a web suite
 
@@ -75,7 +105,8 @@ just the new feature). Diagnose from live data before coding any fix whose cause
 ## 5. Report format
 
 State each layer's result separately — gates, hand audits, suite (with its exit code),
-deploy proofs. Never collapse to "verify is green"; say what green actually covered, and
+deploy proofs. Never collapse to "verify is green" (the owner has learned to ask what that
+actually covers); say what green actually covered, and
 name anything (device-only behavior, unexercised platforms) that is NOT covered rather than
 implying it.
 
