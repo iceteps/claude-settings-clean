@@ -23,6 +23,16 @@ Each check prints `PASS`, `FAIL`, `WARN` or `WAIVED` with the measured value.
 A full-page screenshot is saved per route, width and direction, and one per
 opened overlay.
 
+## Safety
+
+**Never run against production, shared staging or a signed-in real account. It
+clicks, and forms submit. Use only a local dev server, a static build, or a
+disposable preview with throwaway data.**
+
+Non-loopback hosts are refused (exit 2) unless `--allow-remote` is passed; with
+it, popup clicking and form submission stay off unless the config sets
+`"remoteInteractions": true`. Submit controls are never auto-clicked.
+
 ## Install
 
 Nothing to install beyond what a web project usually has:
@@ -49,7 +59,8 @@ node web-acceptance.mjs --config web-acceptance.json --json result.json
 | `--widths` | `320` | comma-separated viewport widths |
 | `--height` | `568` | viewport height |
 | `--dirs` | none | `ltr,rtl`: force `<html dir>` and assert it |
-| `--out` | `web-acceptance-shots` | screenshot directory |
+| `--out` | `$TMPDIR/web-acceptance-<ts>` | screenshot directory, printed as an absolute path |
+| `--allow-remote` | off | permit a non-loopback host (interactions stay off) |
 | `--json` | none | write every result as JSON |
 | `--config` | none | JSON config; see `web-acceptance.example.json` |
 
@@ -57,8 +68,10 @@ Exit codes: `0` all checks pass, `1` at least one FAIL, `2` usage, config or
 setup error.
 
 Suppressions are config entries that must carry a reason: `ignore` excludes
-elements by selector, `waive` turns a check id's FAIL into WAIVED. A missing
-reason is a config error.
+elements by selector (never `html`, `body` or `main`), `waive` turns a check
+id's FAIL into WAIVED, and `weaken` is required to lower the bar (`minTarget`
+under 44, no 320 width, `autoOverlays` off, `maxTriggers` 0). A missing reason
+is a config error.
 
 ## How it works
 
@@ -74,8 +87,10 @@ newly visible panel is measured.
 ## Self-test
 
 `selftest.sh` serves `fixtures/` on a random localhost port and checks that the
-compliant page passes in both directions and that each broken fixture fails
-exactly the checks it was built to trip. Run it after any change to the script.
+compliant pages pass (in both directions), that each broken fixture fails
+exactly the checks it was built to trip, that past false-positive shapes stay
+passing, and that the safety refusals hold. Run it after any change to the
+script.
 
 ## Limits
 

@@ -35,6 +35,15 @@ replaced "it looks fine on my screen".
 
 ## 2. Run it
 
+**SAFETY: never run against production, shared staging or a signed-in real
+account. It clicks, and forms submit. Use only a local dev server, a static
+build, or a disposable preview with throwaway data.** The script enforces the
+floor: a host other than `localhost`, `127.x.x.x`, `[::1]` or a `file://` URL
+exits 2 unless `--allow-remote` is given, and even then popup clicking and
+configured form submissions stay OFF unless the config sets
+`"remoteInteractions": true`. Auto-clicking never touches a submit control
+(`type=submit`/`image` inside a form, or anything with a `form` attribute).
+
 Requires `node` (>= 18), `python3` only for the self-test, and the **Playwright**
 npm package (`playwright` or `playwright-core`) with its Chromium build. The
 script installs nothing. It resolves Playwright from, in order:
@@ -53,7 +62,9 @@ $S/selftest.sh
 
 Flags: `--url`, `--routes a,b`, `--widths 320,390` (default 320), `--height`
 (default 568, a small phone), `--dirs ltr,rtl` (forces `<html dir>`; a fallback
-when the product has no locale switch), `--out DIR` for screenshots, `--json FILE`.
+when the product has no locale switch), `--out DIR` for screenshots (default a
+fresh `$TMPDIR/web-acceptance-<timestamp>`, printed as an absolute path, so
+nothing lands in the project tree), `--json FILE`, `--allow-remote`.
 A static build can be served with `python3 -m http.server --bind 127.0.0.1` or
 addressed as `file://`.
 
@@ -72,6 +83,11 @@ real exit code; never read it through a pipe.
 | `overlays` | `[{route, open, panel}]`: explicit openers for overlays the auto-detection cannot find |
 | `autoOverlays` | default true: clicks every non-link control declaring a popup (`aria-haspopup`, `aria-expanded="false"`, `popovertarget`, `commandfor`), up to `maxTriggers` (8) per page |
 | `forms` | `[{route, fill, submit, waitMs}]`: submits a deliberately bad form and checks the failure is announced |
+| `weaken` | `{key: reason}`: REQUIRED to lower the bar, or the run exits 2. Covers `minTarget` below 44, `widths` without 320, `autoOverlays: false`, `maxTriggers: 0`. Each prints a `WEAKENED` line |
+| `remoteInteractions` | default false: with `--allow-remote`, keeps clicking and form submission on. Only for a disposable preview |
+
+An `ignore` selector that matches `html`, `body` or `main` is refused (exit 2):
+it would ignore the page.
 
 ## 3. What each check measures
 
@@ -89,11 +105,11 @@ real exit code; never read it through a pipe.
 | `overlay-trap` | dialog | with a modal open, 15 Tab + 15 Shift+Tab reached an element in the page behind (leaving the page for the browser chrome is allowed) |
 | `overlay-escape`, `overlay-return` | dialog | Escape does not close it; focus does not return to the trigger |
 | `target` | touch | an interactive control (label area counted for inputs) is under 44px in either dimension. Links inside a sentence are exempt (WCAG 2.5.8 inline exception) |
-| `pointer` | reach | a control scrolled into view has something else on top of its centre (`elementFromPoint`) |
+| `pointer` | reach | a control scrolled into view has something else on top of the centre of EVERY one of its boxes (`getClientRects` + `elementFromPoint`; a link wrapped over two lines passes when either line is hit) |
 | `keyboard` | reach | a visible, enabled, tabbable control is never reached by Tab |
-| `focus-visible` | focus | the focused element's computed outline, shadow, colours, decoration and transform (itself, its pseudo-elements, its parent) are identical to its unfocused state |
+| `focus-visible` | focus | the focused element's computed outline, shadow, colours, decoration and transform (itself, its pseudo-elements, its parent) are identical to its unfocused state, after normalising invisible styles: an outline that is `none`, 0px or fully transparent (the `outline: 2px solid transparent` reset) counts as none; a box-shadow whose layers are all transparent or all-zero counts as none |
 | `focus-onscreen` | focus | Tab lands on something invisible or outside the viewport (the closed off-canvas drawer whose links are still tabbable) |
-| `skip-link` | focus | the first Tab is an in-page link whose target is missing. Not having one is a WARN |
+| `skip-link` | focus | the first Tab is a skip link (an `#id` href, never a `#/` or `#!` hash route, hidden until focused) whose target is missing. A first stop that is not a skip link is a WARN |
 | `text-spacing` | 1.4.12 | after the WCAG text-spacing override, the page scrolls sideways or clips text |
 | `lang`, `dir`, `alt`, `tabindex` | basics | no `<html lang>`; direction differs from `expectDir`; `<img>` without `alt`; any positive `tabindex` |
 | `form-error` | 3.3.1 | after a bad submit, nothing appears in a live region, no `aria-invalid` field has a described error, and native validation did not fire |
@@ -105,8 +121,10 @@ sr-only text and closed drawers) are excluded from layout and touch checks and
 are judged by the keyboard walk instead; content inside scroll containers;
 images and SVG in the overlap check (text over a hero image is a design choice
 for the screenshot to judge); `inert` subtrees in the target and reach checks.
-Animations run with
-`prefers-reduced-motion: reduce` so measurements are not taken mid-transition.
+Animations run with `prefers-reduced-motion: reduce`, and an init script forces
+`scroll-behavior: auto`, so no rect is measured mid-animation. A route that
+redirects is measured where it lands: overlay navigation is judged against the
+landed URL, not the requested one.
 
 ## 4. What it cannot see — do these by eye, every time
 
@@ -126,11 +144,30 @@ Animations run with
 ## 5. Proof and calibration
 
 `scripts/selftest.sh` serves `scripts/fixtures/` on a random localhost port and
-asserts the EXACT set of FAIL ids per fixture: `ok.html` passes in both
-directions; `wide.html` (one 400px element) fails `hscroll` and `offscreen`;
-`overlap`, `clipped`, `target`, `focus`, `covered` and `dialog-overflow` each
-fail the check built for them and nothing else. Re-run it after changing the
-script: a check that cannot fail is not a check.
+asserts the EXACT set of FAIL ids per fixture (no more, no fewer):
+
+| fixture | exit | FAIL set |
+|---|---|---|
+| `ok.html` (ltr and rtl), `g-smooth`, `g-wraplink`, `g-hashroute`, `b-submit` | 0 | none |
+| `wide.html` (one 400px element) | 1 | `hscroll offscreen text-spacing` |
+| `overlap.html` | 1 | `overlap` |
+| `clipped.html` | 1 | `clipped text-spacing` |
+| `target.html` | 1 | `target` |
+| `focus.html` | 1 | `focus-visible focus-onscreen` |
+| `b-tw-outline.html`, `b-shadow0.html` | 1 | `focus-visible` |
+| `covered.html` | 1 | `pointer` |
+| `b-skipmissing.html` | 1 | `skip-link` |
+| `dialog-overflow.html`, and `sheet` (a route that redirects to `/sheet/`) | 1 | `overlay-fit overlay-scroll overlay-trap` |
+
+The `g-*` fixtures are shapes that once produced a FALSE fail (smooth scroll,
+a link wrapped over two lines, hash-route links); the `b-*` ones are shapes that
+once slipped through (transparent-outline and zero-shadow focus resets, a
+redirected route skipping axis 3, an auto-click submitting a delete form). It
+also proves the refusals: remote host exits 2; `--allow-remote` forces clicking
+off (`WEAKENED autoOverlays`); a weakened bar without a reason exits 2; an ignore
+matching `body` exits 2; and the server log shows the `b-submit` form was never
+submitted. Re-run it after changing the script: a check that cannot fail is not
+a check.
 
 When a real page produces a false positive, do not loosen the check by feel:
 add the shape to a fixture, fix the measurement, prove the selftest still holds.

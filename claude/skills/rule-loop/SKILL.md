@@ -59,7 +59,7 @@ good spec:
   instruction overrides a rule by design, so a competing prompt that ORDERS the
   violation measures nothing.
 - **Mechanical checks first** (`regex`, `tool_count`, `order`); `judge` (a
-  Haiku grader) only for what no pattern can see.
+  Sonnet grader) only for what no pattern can see.
 - **A precondition** when the governed behaviour may not happen at all (no
   commit attempted, no page written). Those sessions score `no-signal`, never a
   pass: absent is not zero.

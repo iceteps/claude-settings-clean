@@ -27,12 +27,16 @@ have arrived one review cycle (days) per wall.
    `AndroidManifest.xml` (`aapt dump permissions app.apk`, or
    `apkanalyzer manifest print`) and the `Info.plist` / `PrivacyInfo.xcprivacy`
    inside the `.ipa`. The source says what you meant; the artifact is what the
-   reviewer sees.
+   reviewer sees. Play uploads are usually an `.aab`, which `aapt` cannot read
+   directly: build a universal APK from it with
+   `bundletool build-apks --bundle=app.aab --output=app.apks --mode=universal`
+   and inspect that, or read the merged manifest the build writes
+   (`app/build/intermediates/merged_manifests/...`).
 4. **False privacy copy is its own rejection class AND a trust breach.** Every
    in-app privacy statement, purpose string and store form must match what the
-   code does. The audit found in-app copy promising "never tracks during the
-   shift" in an app shipping opt-in geofencing and photo auto-attach. Audit the
-   copy against the code, both directions.
+   code does. The audit found in-app copy promising no location tracking in an
+   app shipping opt-in geofencing and photo auto-attach. Audit the copy against
+   the code, both directions.
 5. **Native vs over-the-air.** Permissions, plist keys, manifests, entitlements,
    extensions and native modules ride a NEW BINARY. Say so before promising a
    date; an OTA update cannot fix a store wall made of config.
@@ -60,15 +64,18 @@ have arrived one review cycle (days) per wall.
       and localized for every shipped locale.
 - [ ] **Privacy manifest** (`PrivacyInfo.xcprivacy`): required-reason APIs
       declared with approved reasons (UserDefaults, file timestamps, system boot
-      time, disk space, active keyboards), collected data types, tracking flag
+      time, disk space, active keyboards; platform documentation as of 2026-10;
+      re-verify), collected data types, tracking flag
       and tracking domains; third-party SDKs on Apple's list ship their own
       signed manifests at supported versions.
 - [ ] **Unused plugins and SDKs removed**, both the config plugin and the
       dependency: each one can add permissions, background modes or manifest
       entries.
 - [ ] **Target API level** meets Play's current requirement (it moves yearly).
-- [ ] **Export compliance** answered (`ITSAppUsesNonExemptEncryption`), so every
-      build is not held at upload.
+- [ ] **Export compliance** answered (`ITSAppUsesNonExemptEncryption` in the
+      Info.plist, or per build in App Store Connect). The upload itself goes
+      through; an unanswered build is blocked from TestFlight testing and from
+      review until it is answered.
 
 ## 2. Feature walls (build before any submission)
 
@@ -92,7 +99,13 @@ Verified in the source audit (citation as of 2026-09; re-verify):
    Design pass first.
 4. **Sign in with Apple** (Apple 4.8). Any third-party or social login on iOS
    requires an equivalent privacy-preserving option; Sign in with Apple
-   satisfies it.
+   satisfies it. Exempt (check the current text): the app uses only its own
+   account system; it is an education, enterprise or business app whose users
+   sign in with an existing organisation account; it uses a government or
+   industry-backed citizen identity or e-ID; or it is a client for one specific
+   third-party service whose account the user signs into directly (a mail,
+   social or video client for that service); or it is an alternative app
+   marketplace (EU).
 5. **Background location, Play** (Play location permissions policy). An in-app
    PROMINENT DISCLOSURE (what is collected, why, that it runs in the background,
    with an explicit accept) shown BEFORE the runtime request; the Console
@@ -138,10 +151,13 @@ Standard walls the source audit did not hit but every audit must check
       or a place; a video for the geofence-type features.
 - [ ] **Listing assets**: screenshots per required device size class per
       locale; Play feature graphic 1024x500; icon; short and full description;
-      support URL (required by Apple) and marketing URL.
+      support URL (required by Apple); a marketing URL is optional.
 - [ ] **Content rating questionnaire** (Play) and **age rating** (Apple).
 - [ ] **Automated submit config** (e.g. a Play service account for the upload
-      lane), so the first upload is not done by hand from a laptop.
+      lane), so the first upload is not done by hand from a laptop. The
+      service-account JSON key is a credential: keep it out of git (ignored
+      path or CI secret), reference it by path or environment variable, and
+      rotate it if it was ever committed.
 - [ ] **Contact details**: developer email, phone (Play), address where the
       account type requires it.
 

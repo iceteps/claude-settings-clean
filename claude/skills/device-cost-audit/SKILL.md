@@ -90,7 +90,8 @@ that to one query, not touching location at all.
 - Continuous watching is almost never needed for "is the user at X":
   geofences or region monitoring wake the app only on transitions.
 - Platform region caps: iOS monitors at most 20 regions per app; Android
-  geofencing allows 100 per app. When the candidate set exceeds the cap,
+  geofencing allows 100 per app (platform documentation as of 2026-10;
+  re-verify). When the candidate set exceeds the cap,
   choose by priority (open work first, then nearest or most recent) and say
   how many are watched.
 - GPS jitter at a boundary fires repeated enter/exit: per-region cooldowns and

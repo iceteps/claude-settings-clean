@@ -51,7 +51,9 @@ LOCAL_HOOK_CASES = HERE.parent / "local/hook_cases.json"  # machine-specific, no
 STATE = Path.home() / ".claude/state/rule-loop/comply"
 HISTORY = STATE / "history.jsonl"
 SESSION_TIMEOUT = 900
-JUDGE_MODEL = "haiku"
+# Sonnet, not Haiku: Haiku produced two false fails in two runs on 2026-10-24
+# (rank-never-list, finish-whole-request) on transcripts that met the rule.
+JUDGE_MODEL = "sonnet"
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 USAGE_LIMIT = "usage_limit_reached"
 # Browsers abort inside bubblewrap and each abort leaves a core dump (79 on

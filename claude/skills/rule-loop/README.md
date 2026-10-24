@@ -160,7 +160,7 @@ session:
 | `regex` | `on`, `pattern`, `flags` (`i`), `expect` (`match` or `absent`) | the pattern is found, or not found |
 | `tool_count` | `tool` (regex of tool names), `expect` (`zero` or `nonzero`) | that many calls were made |
 | `order` | `first` and `then`, each `{tool, pattern}` (pattern runs on the input as JSON) | the first matching call comes before the second. If the second never happens, the session is no-signal |
-| `judge` | `question` | a Haiku grader answers PASS. If it gives no verdict, the session is an error |
+| `judge` | `question` | a Sonnet grader answers PASS (Haiku gave false fails). If it gives no verdict, the session is an error |
 
 `regex` and `tool_count` also take `file`, a regex on the call's `file_path`,
 to look only at some files.
