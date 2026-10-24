@@ -43,3 +43,9 @@ then derives this repository from it by dropping personal files (memories,
 plans, machine logs), stripping personal sections, rewriting names and paths,
 and refusing to publish if any personal or OS-specific marker survives. A
 secret scan runs on every commit.
+
+## License
+
+MIT (see `LICENSE`). Third-party code bundled inside a skill keeps its own
+licence, for example three.js under `claude/skills/cad-model-views/viewer/vendor/`.
+Issues and pull requests are welcome.
