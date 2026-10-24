@@ -11,7 +11,7 @@ idempotent second pass.**
 
 When a diagnosis has a cheap empirical test, run the test first. Reasoning from source
 about why production misbehaves ranks causes by plausibility; one query ranks them by
-fact. Several plan revisions once all ranked the cause wrong; a single query settled it
+fact. Three plan revisions once all ranked the cause wrong; a single query settled it
 in minutes (the suspected component was healthy; a different screen could not refetch).
 
 ## Setup
@@ -41,17 +41,24 @@ per project (encode them in the project-local skill once they have paid for them
   function, policy, publication membership), not "the migration command succeeded".
 - **Is the function deployed and configured?** Reachability probe plus the secrets list.
   Reachable does not mean configured; a secrets listing that returns digests, not
-  values, is safe to run.
+  values, is safe to run. Confirm the platform's listing returns digests before running
+  it; one that prints values puts secrets in the transcript.
 
 ## Writes — only with the full proof cycle
 
 1. **Dry-run SELECT** of the exact rows the write will touch. Count them. That count is
    the baseline.
-2. **Surgical statement** with an idempotency guard (`WHERE NOT EXISTS`, `IF NOT EXISTS`,
-   `ON CONFLICT DO NOTHING`) and a `RETURNING` clause so the effect is visible.
+2. **Surgical statement** with an idempotency guard and a `RETURNING` clause, so the
+   effect is visible.
+   - Inserts and DDL: `WHERE NOT EXISTS`, `IF NOT EXISTS`, `ON CONFLICT DO NOTHING`.
+   - Updates and deletes: a predicate on the PRE-state (`WHERE status = 'old'`,
+     `WHERE col IS DISTINCT FROM <new>`). Never a relative change (`x = x + 1`) without
+     one.
 3. **Verify query**: the post-state matches baseline plus the intended change.
 4. **Second pass**: run the same write again and prove it affects ZERO rows. That is the
-   idempotency test; reading the SQL is not.
+   idempotency test; reading the SQL is not. If the guard is not obviously sound, first
+   rehearse both passes inside `BEGIN; ... ; ROLLBACK;` so a failed test never writes
+   twice.
 5. Schema changes: apply the new statements only, never the whole bootstrap script
    against a live database; keep the bootstrap script in sync with what was applied.
 

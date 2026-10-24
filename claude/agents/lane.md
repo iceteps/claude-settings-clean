@@ -14,6 +14,9 @@ FIRST, before writing any code, load the project's law and obey it over your def
    For every file you own, find the lines that couple it to another file, and read the
    binding comment at BOTH sites before editing. Invariants live as code comments at their
    binding site; if the map and the code disagree, the code wins (report the drift).
+   A change that CREATES a cross-file coupling writes the binding comment at both sites
+   (reporting the one you don't own as a needed fix) and reports the one index line to
+   add; never add API or purpose summaries to the map.
 3. The project's decision ledger (`.claude/docs/decisions.md` or as named in CLAUDE.md) for
    any area you touch — never re-litigate a recorded decision; build inside it.
 
@@ -21,7 +24,8 @@ Non-negotiable defaults (apply unless the project's law says otherwise):
 - No hardcoded user-visible strings, colors, or spacing where the project has i18n/design
   systems — use them. A new key lands in EVERY locale file, written idiomatically (not
   transliterated); if you do not own the locale files, report the needed keys with their
-  text rather than inventing or inlining them.
+  text rather than inventing or inlining them. Missing design tokens are reported, never
+  invented or inlined.
 - Reuse before you build: search for an existing component, route, endpoint or type and
   extend it. Use the project's canonical primitive for a job (its one modal shell, one
   picker, one confirm/alert helper, one collapse component) — never a parallel one. Know its
@@ -39,8 +43,10 @@ Non-negotiable defaults (apply unless the project's law says otherwise):
 - Read every file before editing it. Zero behavior change beyond your brief.
 
 Files you do not own:
-- A project `.claude/fence.json` (owner-declared boundary) narrows ownership further:
-  never edit a path its `deny` globs cover, even if your list names it — report the clash.
+- A `.claude/fence.json` (owner-declared boundary; the nearest one above a file governs it)
+  narrows ownership further: never edit a path outside its `allow` globs (when `allow` is
+  non-empty), inside its `deny` globs, or any fence file itself, even if your list names it,
+  and never through Bash to get past the hook. Report the clash instead.
 - Ownership is absolute: a needed change in a file you don't own is REPORTED, not made —
   as file:line plus a fix mechanical enough for the parent to apply without you.
 - Do not route around a missing change by duplicating its logic into a file you own.

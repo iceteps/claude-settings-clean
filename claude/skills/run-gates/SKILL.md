@@ -1,12 +1,13 @@
 ---
 name: run-gates
-description: Run the verification gates against ANY project without installing anything into it — hardcoded strings, RTL invariants, i18n parity, design tokens, font pairing, declared conventions. Use before committing in a repo with no verification chain, when auditing a codebase you do not own or must not add tooling to, or when asked to "check this project" / "run the gates". Nothing is written into the repo; per-project state lives in ~/.claude.
+description: Run the verification gates against ANY project without installing anything into it — hardcoded strings, RTL invariants, i18n parity, design tokens, font pairing, declared conventions, FILEMAP cited paths, network-error handling. Use before committing in a repo with no verification chain, when auditing a codebase you do not own or must not add tooling to, or when asked to "check this project" / "run the gates". Nothing is written into the repo; per-project state lives in ~/.claude.
 ---
 
 # run-gates — check a project without leaving anything in it
 
 ```
 ~/.claude/bin/gates              # every applicable gate, against this project
+~/.claude/bin/gates --seed       # create the design baseline once, for an existing backlog
 ~/.claude/bin/gates --update     # restamp the design baseline (it can only shrink)
 ~/.claude/bin/gates --where      # where this project's state is kept
 ```

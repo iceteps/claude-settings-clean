@@ -17,7 +17,7 @@ the bar includes the project's tests and honest reporting.
    REAL diff, not the implementer's summary, and runs whatever checks it can.
    Verdict SHIP / SHIP_WITH_FIXES, with file-exact findings graded
    blocker / should / nit (defined in `~/.claude/agents/lane-reviewer.md`);
-   any open blocker means the batch does not ship.
+   any open blocker or should finding means the batch does not ship.
 3. **Apply every finding** — or justify each skip explicitly in the report.
    Blocker and should findings are never skipped.
 4. **Re-review the fixed state.** The reviewer re-verifies EVERY prior

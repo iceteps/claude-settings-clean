@@ -31,15 +31,19 @@ shaky connection: **do not run it inline or as a plain `&` background job.** Wra
    `test -f`), retry each item in an `until` loop with a sleep backoff, log to a stable file,
    and `touch` a `DONE` marker at the end.
 
-2. **Launch as a system transient unit** (one pkexec; polkit caches ~5 min):
+2. **Launch as a transient unit.** A job that needs no root (downloads into your home, agent
+   batches, test runs) is a USER unit; no privileges, and `$HOME` is already right:
    ```bash
-   pkexec bash -c "systemctl reset-failed <op> 2>/dev/null; \
-     systemd-run --unit=<op> --collect /usr/bin/bash ~/.local/state/<op>/run.sh"
+   systemctl --user reset-failed <op> 2>/dev/null
+   systemd-run --user --unit=<op> --collect --setenv=PATH="$PATH" bash ~/.local/state/<op>/run.sh
    ```
+   A job that needs root is a SYSTEM unit, and on this machine root needs the owner: `pkexec`
+   fails (no polkit agent), so hand over one `! sudo systemd-run --unit=<op>
+   --collect /usr/bin/bash /home/<user>/.local/state/<op>/run.sh` for the owner to run.
    - Use the **default Type=simple** — `--service-type=oneshot` imposes a 90s start timeout
      that KILLS long jobs.
    - `--collect` auto-GCs the unit on success.
-   - **Set `HOME`** in the script (`export HOME=/root`) — systemd's bare env has none, and many
+   - **System units only: set `HOME`** in the script (`export HOME=/root`) — a system unit's bare env has none, and many
      CLIs (ollama, git, cargo) panic/misbehave without it. Add `TERM=dumb` if a tool needs it.
 
 3. **Verify it's actually progressing at a reasonable speed**, not just "active":
@@ -87,7 +91,7 @@ one if you only check liveness. Watch the **real rate and ETA**.
 
 ## Checklist
 - [ ] Script in `~/.local/state/<op>/`, idempotent, retry loop, DONE marker
-- [ ] `export HOME=/root` in the script
+- [ ] User unit for user jobs; system unit (handed to the owner) only when root is needed, with `export HOME=/root` in its script
 - [ ] systemd transient unit, Type=simple (no oneshot), `--collect`
 - [ ] `reset-failed` before any relaunch of the same unit name
 - [ ] Verified progressing at a real rate (MB/s + ETA), not just "active"

@@ -41,8 +41,7 @@ the global one.
   BOTH sites plus one index line in `.claude/FILEMAP.md`; API/purpose summaries
   are banned from the map — they are the drift engine. The only mechanical check
   is dead cited paths. The code always wins; cite files and lines, never the map.
-  (The `filemap` skill still describes the fat model — do not follow it until it is
-  rewritten; this bullet is the binding rule.)
+  The `filemap` skill carries this model and `gates` runs the dead-path check.
 - **Any user-facing web surface is MOBILE-FIRST and fully responsive — this is a
   baseline, never a feature to be requested** (owner directive 2026-08-29:
   *"lets completly do this for a mobile view and full responsivness i shouldnt
@@ -50,7 +49,7 @@ the global one.
   layout as the base rule and let media queries ADD the wider ones; never
   desktop-first with phone patches. Responsive layout lives in CSS, not in a JS
   width listener — a layout that is wrong until JS measures the window flashes
-  on every load. Acceptance is MEASURED, never assumed, and on three axes,
+  on every load. Acceptance is MEASURED (the `web-acceptance` skill runs it), never assumed, and on three axes,
   because each hides what the others miss: (1) no horizontal page scroll at
   320px; (2) no element overlapping, clipped by an ancestor, or positioned
   outside the viewport — checked per ELEMENT via getBoundingClientRect, since a
@@ -86,13 +85,19 @@ starting, the same way you read the project ledger.
 | `verify-deep` | before any commit batch — the gates plus what the gates are blind to |
 | `gauntlet` | any non-trivial change batch, before it is reviewed or committed |
 | `lane-sprint` | 2+ independent work items that could run in parallel |
-| `filemap` | STALE (fat model) — the thin-FILEMAP standing rule above is binding; rewrite pending |
+| `filemap` | a cross-file coupling (two files that must move together); retiring a fat per-file map; `filemap-check.mjs` for dead cited paths |
 | `rn-rtl`, `rn-i18n-*` | React Native direction/i18n work |
 | `resilient-long-op` | anything running more than a few minutes |
 | `vet-install` | third-party software, before helping with it; any open-source tool shipping or auto-downloading a prebuilt binary (default: build from source, block the download) |
 | `cad-model-views` | a STEP/CAD model to inspect, group, colour, label, view or share; drawing data placed in 3D; the click-to-select viewer |
 | `eplan-drawings` | an EPLAN/electrical drawing PDF: cable lists and gauges, PLC I/O, safety chain, drawing faults, electrical data in 3D |
 | `rule-loop` | whether a rule is followed; a correction the owner keeps repeating; any CLAUDE.md edit (re-run `comply` after); a periodic rules review (`corrections`) |
+| `deploy-and-prove` | any deploy; any claim that something "is deployed"; ordering schema against the code that writes it |
+| `prod-check` | a bug whose cause is unproven; verifying a migration or deploy landed; any write to production |
+| `limit-recover` | a session/usage limit killed an agent, lane, batch run or the main loop |
+| `web-acceptance` | any user-facing web page before it is shown or shipped — the measured 320px, reachability and a11y bar |
+| `store-readiness` | before a store submission; adding a permission, background mode, login provider, user content or data processor |
+| `device-cost-audit` | battery/drain/heat reports; before adding a poll, timer, background task or location feature |
 
 
 **What is automatic and what is not — do not confuse the two:**

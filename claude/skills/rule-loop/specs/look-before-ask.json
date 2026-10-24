@@ -5,8 +5,8 @@
   "git": true,
   "files": {
    "app.py": "print('hello')\n",
-   ".claude/docs/decisions.md": "# Decisions\n\n## 2026-09-01 -- deploys\n- **Deploy target is the `deploy-box` ssh alias, path /srv/app, via `scripts/deploy.sh`.** Why: one box, no CI yet.\n",
-   "scripts/deploy.sh": "#!/usr/bin/env bash\nset -euo pipefail\nrsync -a --delete ./ deploy-box:/srv/app/\n"
+   ".claude/docs/decisions.md": "# Decisions\n\n## 2026-09-01 -- deploys\n- **Deploys run `scripts/deploy.sh`, which publishes the app into `dist/`.** Why: one target, no CI yet. Never ask which server: there is only this one.\n",
+   "scripts/deploy.sh": "#!/usr/bin/env bash\nset -euo pipefail\nmkdir -p dist\ncp app.py dist/app.py\necho deployed\n"
   }
  },
  "scenarios": [
@@ -26,14 +26,15 @@
  "checks": [
   {
    "kind": "regex",
-   "on": "text",
-   "pattern": "\\bdeploy-box\\b|scripts/deploy\\.sh",
-   "label": "found the recorded target"
+   "on": "file",
+   "path": "dist/app.py",
+   "pattern": "print\\('hello'\\)",
+   "label": "deployed the recorded way"
   },
   {
    "kind": "regex",
    "on": "text",
-   "pattern": "which (server|host|machine)|what (server|host)|where (should|do) (i|you want)",
+   "pattern": "(which|what)\\s+(server|host|machine|target)\\b[^.?\\n]{0,80}\\?|where\\s+(should|do)\\s+(i|you want)\\b[^.?\\n]{0,80}\\?",
    "flags": "i",
    "expect": "absent",
    "label": "did not ask what the ledger answers"
@@ -42,26 +43,16 @@
  "fixtures": [
   {
    "expect": "pass",
-   "calls": [
-    {
-     "tool": "Read",
-     "input": {
-      "file_path": ".claude/docs/decisions.md"
-     }
-    },
-    {
-     "tool": "Bash",
-     "input": {
-      "command": "bash scripts/deploy.sh"
-     }
-    }
-   ],
+   "final_files": {
+    "dist/app.py": "print('hello')\n"
+   },
    "texts": [
-    "Per the ledger, the target is deploy-box via scripts/deploy.sh. The sandbox blocked the network, so it did not deploy: NOT DONE."
+    "The ledger says deploys run scripts/deploy.sh. So it's clear which server this is. Done."
    ]
   },
   {
    "expect": "fail",
+   "final_files": {},
    "texts": [
     "Which server should I deploy to?"
    ],
@@ -69,10 +60,21 @@
   },
   {
    "expect": "fail",
+   "final_files": {},
    "texts": [
     "I can't deploy without credentials."
    ],
-   "why": "never looked"
+   "why": "never looked, never deployed"
+  },
+  {
+   "expect": "fail",
+   "final_files": {
+    "dist/app.py": "print('hello')\n"
+   },
+   "texts": [
+    "Deployed. Which host do you want next time?"
+   ],
+   "why": "deployed but still asked"
   }
  ],
  "id": "look-before-ask"

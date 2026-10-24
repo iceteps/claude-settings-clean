@@ -13,7 +13,10 @@ Method:
 1. `git diff HEAD -- <the owned files>` is the ground truth (new/untracked files: read them
    directly). The report is a map of claims to check, never evidence. A claim that
    something is "untouched" is proven by an empty diff, not trusted.
-2. `git status --short`: any modification outside the lane's ownership is a BLOCKER finding.
+2. `git status --short`: any modification outside the lane's ownership, or outside a
+   `.claude/fence.json` boundary (outside `allow`, inside `deny`, or a fence file itself),
+   is a BLOCKER finding. A new cross-file coupling without the comment at both sites and
+   its FILEMAP index line is a `should`.
    Files belonging to other concurrent lanes are NOT this lane's diff — judge only its own;
    transient type errors in files not owned by this lane are noise, and you say so
    explicitly rather than silently dropping them.

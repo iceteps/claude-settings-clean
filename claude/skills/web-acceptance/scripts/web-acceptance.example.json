@@ -1,0 +1,25 @@
+{
+  "url": "http://localhost:5173",
+  "routes": ["/", "/pricing", "/account"],
+  "widths": [320, 390],
+  "height": 568,
+  "directions": [
+    { "name": "en", "locale": "en-US", "localStorage": { "app.locale": "en" }, "expectDir": "ltr" },
+    { "name": "he", "locale": "he-IL", "localStorage": { "app.locale": "he" }, "expectDir": "rtl" }
+  ],
+  "ignore": [
+    { "selector": ".map-canvas", "reason": "third-party map tiles extend past their clip by design" }
+  ],
+  "waive": {
+    "skip-link": "single-screen app with no repeated navigation block (WCAG 2.4.1 met by landmarks)"
+  },
+  "overlays": [
+    { "route": "/account", "open": "#delete-account", "panel": "[role=alertdialog]" }
+  ],
+  "forms": [
+    { "route": "/account", "fill": { "#email": "not-an-email" }, "submit": "button[type=submit]", "waitMs": 1500 }
+  ],
+  "maxTriggers": 8,
+  "out": "web-acceptance-shots",
+  "json": "web-acceptance.json"
+}

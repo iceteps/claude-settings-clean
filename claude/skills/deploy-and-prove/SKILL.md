@@ -16,10 +16,11 @@ version you think is live, and it does not prove the version behaves.
 ## Rule 0 — the staleness check, BEFORE claiming anything is deployed
 
 For every artifact the claim covers, compare its last source change against its last
-deploy:
+deploy. The source is every path the artifact bundles: its own directory, the shared
+modules it imports, and the lockfile.
 
 ```bash
-git log -3 --format='%h %ci %s' -- <artifact source path>
+git log -3 --format='%h %ci %s' -- <artifact dir> <shared modules> <lockfile>
 ```
 
 If any commit postdates the last deploy of that artifact, it is NOT deployed, whatever
@@ -29,7 +30,9 @@ digest).
 
 ## The checklist
 
-1. **Staleness check** (Rule 0). Name the artifact and the commit you intend to ship.
+1. **Staleness check** (Rule 0). Name the artifact and the commit you intend to ship,
+   and confirm `git status --short -- <its paths>` is empty. Most deploy tools ship the
+   working tree, not the commit.
 2. **Order against the schema.** If the code reads or writes a new column, table, index,
    queue or config key, that change lands live FIRST and is verified (`prod-check`) before
    the code ships. Code ahead of schema is a runtime error for every user in between.
@@ -50,8 +53,15 @@ digest).
    data (`prod-check`): the field the fix populates is now populated, the error the fix
    removes is gone. Reachability (HTTP 200/204 on a health or OPTIONS probe) proves only
    that something answers.
-8. **Idempotent second pass.** Re-run the apply (or the migration) and prove it changes
-   nothing: zero rows affected, no new objects, same hash.
+   Bound every deploy and probe with a timeout (`timeout 240 <deploy>`), and run
+   non-interactive SSH probes with `-o BatchMode=yes`, so a missing key fails at once
+   instead of prompting or feeding the host's brute-force ban.
+8. **Idempotent second pass.**
+   - Schema and data: re-run the apply and prove it changes nothing (zero rows affected,
+     no new objects), using the guards in `prod-check`.
+   - Process or file deploys: prove re-runnability by a dry run (`rsync -n`, a plan or
+     diff mode) or a hash comparison. Never restart a live service only to prove
+     idempotency.
 9. **Record it.** Deploy time, commit, evidence, in the project's log, so the next Rule 0
    has something to compare against.
 

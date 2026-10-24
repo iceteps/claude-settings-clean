@@ -53,6 +53,7 @@ fi
 [ -f scripts/font-check.mjs ]   && run "font pairing"  node scripts/font-check.mjs
 [ -d web ] && run "typecheck web" sh -c "cd web && npx tsc --noEmit"
 [ -f scripts/net-errors-check.mjs ] && run "net error shapes" node scripts/net-errors-check.mjs
+[ -f scripts/filemap-check.mjs ]    && run "filemap cited paths" node scripts/filemap-check.mjs
 
 if [ "$fail" -ne 0 ]; then
   {

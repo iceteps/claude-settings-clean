@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dialog-overflow fixture</title>
+<link rel="stylesheet" href="../base.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header>
+  <ul class="nav">
+    <li><a href="#a">Home</a></li>
+    <li><a href="#b">Prices</a></li>
+    <li><button id="menu-btn" aria-haspopup="dialog" aria-controls="menu" aria-expanded="false">Menu</button></li>
+  </ul>
+</header>
+<main id="main" tabindex="-1">
+  <h1>A compliant page</h1>
+  <button id="sheet-btn" aria-haspopup="dialog" aria-controls="sheet" aria-expanded="false">Details</button><div id="sheet" role="dialog" aria-modal="true" aria-label="Details" hidden style="position:fixed;top:0;left:0;right:0;background:#fff;padding:16px"><button id="sheet-close">Close</button><p>One.</p><p>Two.</p><p>Three.</p><p>Four.</p><p>Five.</p><p>Six.</p><p>Seven.</p><p>Eight.</p><p>Nine.</p><p>Ten.</p><p>Eleven.</p><p>Twelve.</p><p>Thirteen.</p><p>Fourteen.</p><p>Fifteen.</p><p>Sixteen.</p></div><script>(()=>{const b=document.getElementById("sheet-btn"),s=document.getElementById("sheet");b.onclick=()=>{s.hidden=false;b.setAttribute("aria-expanded","true");document.getElementById("sheet-close").focus()};const shut=()=>{s.hidden=true;b.setAttribute("aria-expanded","false");b.focus()};document.getElementById("sheet-close").onclick=shut;document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!s.hidden)shut()})})()</script>
+  <p>This paragraph wraps at any width and carries an <a href="#terms">inline link</a> inside the sentence, which is exempt from the target size.</p>
+  <img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="" width="1" height="1">
+  <form onsubmit="return false">
+    <label>Email <input type="email" required autocomplete="email"></label>
+    <button type="submit">Send</button>
+  </form>
+</main>
+<dialog id="menu" aria-labelledby="menu-title">
+  <h2 id="menu-title">Menu</h2>
+  <button id="close">Close</button>
+  <p>Long dialog content that is taller than a phone screen, so the dialog must scroll inside itself.</p>
+  <p>Line two of the long content.</p><p>Line three.</p><p>Line four.</p><p>Line five.</p>
+  <p>Line six.</p><p>Line seven.</p><p>Line eight.</p><p>Line nine.</p><p>Line ten.</p>
+  <p>Line eleven.</p><p>Line twelve.</p><p>Line thirteen.</p><p>Line fourteen.</p>
+</dialog>
+<script>
+  const btn = document.getElementById('menu-btn');
+  const dlg = document.getElementById('menu');
+  btn.addEventListener('click', () => { dlg.showModal(); btn.setAttribute('aria-expanded', 'true'); });
+  document.getElementById('close').addEventListener('click', () => dlg.close());
+  dlg.addEventListener('close', () => { btn.setAttribute('aria-expanded', 'false'); btn.focus(); });
+</script>
+</body>
+</html>

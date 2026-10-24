@@ -30,7 +30,8 @@ cd "$ROOT"
 mkdir -p scripts scripts/hooks .claude
 
 copied=()
-for f in hardcode-check.mjs i18n-check.mjs rtl-check.mjs design-check.mjs font-check.mjs convention-check.mjs; do
+for f in hardcode-check.mjs i18n-check.mjs rtl-check.mjs design-check.mjs font-check.mjs convention-check.mjs \
+         filemap-check.mjs net-errors-check.mjs; do
   if [ -f "scripts/$f" ] && [ $FORCE -eq 0 ]; then continue; fi
   cp "$HERE/$f" "scripts/$f"
   copied+=("$f")
@@ -66,6 +67,8 @@ const add = {
   'design:check': 'node scripts/design-check.mjs',
   'font:check': 'node scripts/font-check.mjs',
   'convention:check': 'node scripts/convention-check.mjs',
+  'filemap:check': 'node scripts/filemap-check.mjs',
+  'neterr:check': 'node scripts/net-errors-check.mjs',
 };
 const added = [];
 for (const [k, v] of Object.entries(add)) {
@@ -93,8 +96,9 @@ NEXT — in this order, because the first run of a gate on an existing codebase
 almost always finds a backlog:
 
   1. npm run verify
-  2. For a class too large to fix today, BASELINE it (design-check writes
-     .claude/design-baseline.json; hardcode-check carries a legacy list) and
+  2. For a class too large to fix today, BASELINE it (`node scripts/design-check.mjs
+     --seed --in-repo` writes .claude/design-baseline.json once; hardcode-check
+     reads its legacy list from .claude/gate-config.json; see ratchet.md) and
      make anything NEW fail. For a class small enough to fix today, fix it —
      a zero baseline needs no file and nobody memorises numbers.
   3. PROVE one gate: re-inject a violation it should catch, watch it fail,

@@ -9,6 +9,7 @@
 # without having a file.
 #
 #   gates            # run every applicable gate against this project
+#   gates --seed     # create the design baseline once (refuses if one exists)
 #   gates --update   # restamp the design baseline (never grows it)
 #   gates --where    # print where this project's state is kept
 #
@@ -20,6 +21,8 @@ SKILL="$HOME/.claude/skills/gate-scripts/scripts"
 root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 cd "$root" || exit 1
 
+# COUPLING: design-check.mjs derives the same slug (DEFAULT_STATE) to refuse a repo
+# seed that would shadow this state baseline. Change both or neither.
 slug=$(printf '%s' "$root" | sed 's#^/##; s#[^A-Za-z0-9]#_#g')
 state="$HOME/.claude/gate-state/$slug"
 mkdir -p "$state"
@@ -29,14 +32,6 @@ if [ "${1:-}" = "--where" ]; then
   echo "$root"
   echo "  state: $state"
   ls -la "$state" 2>/dev/null | tail -n +4 | sed 's/^/    /'
-  exit 0
-fi
-
-# Source dirs: whatever this project actually has.
-dirs=()
-for d in src app lib source; do [ -d "$d" ] && dirs+=("$d"); done
-if [ ${#dirs[@]} -eq 0 ]; then
-  echo "gates — no source directory (src/app/lib/source) in $(basename "$root")"
   exit 0
 fi
 
@@ -56,13 +51,28 @@ run() {
 
 echo "gates — $(basename "$root")  (state: ~/.claude/gate-state/$slug)"
 
+# Repo-level gates first: they apply even to a repo with no source directory.
+run "filemap cited paths" node "$SKILL/filemap-check.mjs"
+
+# Source dirs: whatever this project actually has.
+dirs=()
+# web/src: a web client living beside an app (its own strings, its own RTL).
+for d in src app lib source web/src; do [ -d "$d" ] && dirs+=("$d"); done
+if [ ${#dirs[@]} -eq 0 ]; then
+  echo "  (no source directory: src/app/lib/source — source gates skipped)"
+  exit $fail
+fi
+
 for d in "${dirs[@]}"; do
   run "hardcoded strings ($d)" node "$SKILL/hardcode-check.mjs" "$d"
   run "rtl invariants ($d)"    node "$SKILL/rtl-check.mjs" "$d"
-  run "font pairing ($d)"      node "$SKILL/font-check.mjs" "$d"
+  # font pairing is React Native's rule (a static weight is its own family); web inherits it.
+  [ "$d" != web/src ] && run "font pairing ($d)" node "$SKILL/font-check.mjs" "$d"
 done
-[ -d "${dirs[0]}/i18n" ] && run "i18n parity" node "$SKILL/i18n-check.mjs"
-if [ "${1:-}" = "--update" ]; then
+[ -d "${dirs[0]}/i18n" ] && run "i18n parity" node "$SKILL/i18n-check.mjs" "${dirs[0]}"
+if [ "${1:-}" = "--seed" ]; then
+  run "design tokens (seed)" node "$SKILL/design-check.mjs" --seed
+elif [ "${1:-}" = "--update" ]; then
   run "design tokens (restamp)" node "$SKILL/design-check.mjs" --update
 else
   run "design tokens" node "$SKILL/design-check.mjs"
@@ -75,6 +85,8 @@ if [ -f .claude/conventions.json ]; then
 else
   run "conventions" node "$SKILL/convention-check.mjs" "$state/conventions.json"
 fi
+# Finds .claude/net-errors.json or $GATE_STATE_DIR/net-errors.json itself.
+run "net error shapes" node "$SKILL/net-errors-check.mjs"
 
 echo
 if [ $fail -eq 0 ]; then

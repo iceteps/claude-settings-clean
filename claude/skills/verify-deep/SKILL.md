@@ -32,7 +32,9 @@ standing bar since).
 ## 2. Hand-audit the DIFF for what gates can't see
 
 Scope to the change (`git diff <base>` + untracked new files), not the tree. Grep only the
-ADDED lines: `git diff <base> | grep '^+' | grep -v '^+++' | grep -E '<pattern>'`.
+ADDED lines: `git diff <base> | grep '^+' | grep -v '^+++' | grep -E '<pattern>'`, plus
+every untracked file whole: `git ls-files -o --exclude-standard -z | xargs -0 grep -nE
+'<pattern>'` (a new file never appears in `git diff`).
 - Hardcoded user-visible strings — in JSX/markup text AND in props/arguments (placeholders,
   dialog titles, accessibility labels, share/notification/export content, filenames).
 - Hardcoded colors/styles outside the design system; every hit needs a justification. The

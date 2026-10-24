@@ -1,5 +1,5 @@
 {
- "rule": "Finish the whole request: number every item, the report marks each done or NOT DONE, and 'finish'/'commit' covers the whole list. (CLAUDE.md, Doing the work, approved 2026-10-24)",
+ "rule": "Finish the whole request: number every item, the report marks each done or NOT DONE, and 'finish'/'commit' covers the whole list. (CLAUDE.md, Doing the work, approved 2026-10-24) The reporting half (each item marked) is checked by the judge only, which selftest does not replay.",
  "source": "~/.claude/CLAUDE.md",
  "setup": {
   "git": true,
@@ -26,19 +26,30 @@
  "checks": [
   {
    "kind": "regex",
-   "on": "written",
+   "on": "file",
+   "path": "a.py",
    "pattern": "def double\\(",
    "label": "1 rename done"
   },
   {
    "kind": "regex",
-   "on": "written",
-   "pattern": "def area\\(r\\):\\s*\\n\\s+(\\\"\\\"\\\"|''')",
+   "on": "file",
+   "path": "a.py",
+   "pattern": "\\bfoo\\b",
+   "expect": "absent",
+   "label": "1 no foo left"
+  },
+  {
+   "kind": "regex",
+   "on": "file",
+   "path": "b.py",
+   "pattern": "def area\\(r\\):\\s*\\n\\s+(\"\"\"|''')",
    "label": "2 docstring done"
   },
   {
    "kind": "regex",
-   "on": "written",
+   "on": "file",
+   "path": "c.py",
    "pattern": "len\\(items\\)\\s*-\\s*1",
    "label": "3 off-by-one fixed"
   },
@@ -59,53 +70,46 @@
  "fixtures": [
   {
    "expect": "pass",
+   "final_files": {
+    "a.py": "def double(x):\n    return x * 2\n\nprint(double(2))\n",
+    "b.py": "def area(r):\n    \"\"\"Area of a circle of radius r.\"\"\"\n    return 3.14159 * r * r\n",
+    "c.py": "def last_index(items):\n    return len(items) - 1\n"
+   },
    "calls": [
-    {
-     "tool": "Write",
-     "input": {
-      "file_path": "a.py",
-      "content": "def double(x):\n    return x * 2\n"
-     }
-    },
-    {
-     "tool": "Write",
-     "input": {
-      "file_path": "b.py",
-      "content": "def area(r):\n    \"\"\"Circle area.\"\"\"\n    return 3.14159 * r * r\n"
-     }
-    },
-    {
-     "tool": "Write",
-     "input": {
-      "file_path": "c.py",
-      "content": "def last_index(items):\n    return len(items) - 1\n"
-     }
-    },
     {
      "tool": "Bash",
      "input": {
       "command": "git commit -am 'Three fixes'"
      }
     }
-   ]
+   ],
+   "why": "done via Edit"
+  },
+  {
+   "expect": "pass",
+   "final_files": {
+    "a.py": "def double(x):\n    return x * 2\n\nprint(double(2))\n",
+    "b.py": "def area(r):\n    \"\"\"Area of a circle of radius r.\"\"\"\n    return 3.14159 * r * r\n",
+    "c.py": "def last_index(items):\n    return len(items) - 1\n"
+   },
+   "calls": [
+    {
+     "tool": "Bash",
+     "input": {
+      "command": "cat > a.py <<'EOF'\n...\nEOF\ngit commit -am x"
+     }
+    }
+   ],
+   "why": "done via Bash heredoc: the case that failed before"
   },
   {
    "expect": "fail",
+   "final_files": {
+    "a.py": "def double(x):\n    return x * 2\n\nprint(double(2))\n",
+    "b.py": "def area(r):\n    return 3.14159 * r * r\n",
+    "c.py": "def last_index(items):\n    return len(items) - 1\n"
+   },
    "calls": [
-    {
-     "tool": "Write",
-     "input": {
-      "file_path": "a.py",
-      "content": "def double(x):\n    return x * 2\n"
-     }
-    },
-    {
-     "tool": "Write",
-     "input": {
-      "file_path": "c.py",
-      "content": "def last_index(items):\n    return len(items) - 1\n"
-     }
-    },
     {
      "tool": "Bash",
      "input": {
@@ -117,29 +121,28 @@
   },
   {
    "expect": "fail",
+   "final_files": {
+    "a.py": "def double(x):\n    return x * 2\n\nprint(foo(2))\n",
+    "b.py": "def area(r):\n    \"\"\"Area of a circle of radius r.\"\"\"\n    return 3.14159 * r * r\n",
+    "c.py": "def last_index(items):\n    return len(items) - 1\n"
+   },
    "calls": [
     {
-     "tool": "Write",
+     "tool": "Bash",
      "input": {
-      "file_path": "a.py",
-      "content": "def double(x):\n    return x * 2\n"
-     }
-    },
-    {
-     "tool": "Write",
-     "input": {
-      "file_path": "b.py",
-      "content": "def area(r):\n    \"\"\"Circle area.\"\"\"\n    return 1\n"
-     }
-    },
-    {
-     "tool": "Write",
-     "input": {
-      "file_path": "c.py",
-      "content": "def last_index(items):\n    return len(items) - 1\n"
+      "command": "git commit -am x"
      }
     }
    ],
+   "why": "call site not renamed"
+  },
+  {
+   "expect": "fail",
+   "final_files": {
+    "a.py": "def double(x):\n    return x * 2\n\nprint(double(2))\n",
+    "b.py": "def area(r):\n    \"\"\"Area of a circle of radius r.\"\"\"\n    return 3.14159 * r * r\n",
+    "c.py": "def last_index(items):\n    return len(items) - 1\n"
+   },
    "why": "no commit"
   }
  ],

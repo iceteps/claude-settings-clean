@@ -63,26 +63,26 @@ would be wrong half the time.
 ## The scripts
 
 All take an optional directory (default `src`) resolved against the CWD, so run them from the
-project root. Copy into the project's `scripts/`, add to the verify chain.
+project root; `filemap-check.mjs` takes a map path and `net-errors-check.mjs` a config path
+instead. Copy into the project's `scripts/`, add to the verify chain. Project specifics
+(legacy lists, opt-in classes, paths) live in `.claude/gate-config.json`, or in gate-state
+when the gates run from outside; the repo copy wins, and unknown keys exit 2.
 
 | Script | Catches | Notes |
 |---|---|---|
-| `hardcode-check.mjs` | User-visible strings outside i18n: bare JSX text, string props, dialog titles, validators, raw `e.message` display, `locale === 'x'` branches, device-locale `toLocale*` | The big one. Carries a legacy frozen list. |
+| `hardcode-check.mjs` | User-visible strings outside i18n: bare JSX text, string props, dialog titles, validators, raw `e.message` display, `locale === 'x'` branches, device-locale `toLocale*`; opt-in `errtext-display` (a raw-error helper shown to users) and `kit-copy` (an inline two-language copy helper outside its allowed files) | The big one. Legacy list and opt-in classes come from `gate-config.json`. |
 | `i18n-check.mjs` | Key parity gaps, orphaned keys, interpolation mismatches | Two brand/acronym allowlists to edit per project. |
 | `rtl-check.mjs` | `row-reverse`, `textAlign` derived from an rtl flag, bare `textAlign` literals, rtl-derived flex alignment, direct `I18nManager` reads; WARNs on physical edges | RN + web. |
-| `design-check.mjs` | Colour/breakpoint/radius/spacing literals outside the token files | Frozen ratchet; scans multiple trees. |
+| `design-check.mjs` | Colour/breakpoint/radius/spacing literals outside the token files | Frozen ratchet (`ratchet.md`): `--seed` once, `--update` only shrinks; multiset baseline. |
 | `font-check.mjs` | `fontWeight` with no `fontFamily` | RN-specific: each static weight is its own family name, so a weight alone silently leaves the type system. Zero baseline. |
+| `filemap-check.mjs` | Dead paths cited by the thin `.claude/FILEMAP.md` traps index | The only mechanical FILEMAP check (`filemap` skill). One line and exit 0 when there is no map. |
+| `net-errors-check.mjs` | A caught error stringified and then matched (`String(err).includes`), plus a fixture run of the project's error-classification module against real shapes | Config: `.claude/net-errors.json`. Doctrine: `net-errors.md`, `offline-first-writes` modes A and C. |
 | `pre-commit-gate.sh` | Runs the chain and **blocks the commit** | PreToolUse hook on Bash, matches `git commit`, exempts `--amend`. |
 
-Two more patterns worth rebuilding rather than copying, because their content is
-project-specific:
-
-- **Error-shape check.** Extract error predicates into a DEPENDENCY-FREE module, then compile
-  that one file with a single `tsc` call from a script and assert against REAL error shapes
-  (your HTTP client's actual rejection object, your providers' actual guard messages). This
-  needs no test runner and no new dependency, and it is the only coverage such code can have
-  when the test suite runs against a mock that never produces those failures.
-- **FILEMAP staleness.** See the `filemap` skill — advisory, never in the blocking chain.
+Both former "rebuild per project" patterns are now scripts: the error-shape check is
+`net-errors-check.mjs` (keep the predicates in a dependency-free module so it can load
+alone), and FILEMAP checking is `filemap-check.mjs`, blocking because its FAIL class has
+zero false positives. A gate whose count may only fall is built per `ratchet.md`.
 
 ## Companion skills
 

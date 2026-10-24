@@ -67,15 +67,16 @@ Each binding site carries a comment that names the OTHER site and says what move
 together. Write it where the next editor will be standing when they make the change.
 
 ```ts
-/** COUPLING: src/providers/session.ts owns this key (SESSION_CACHE_KEY).
- *  Duplicated by literal because importing it would close a require cycle.
- *  Rename both together. Indexed in .claude/FILEMAP.md. */
-const SESSION_CACHE_KEY = 'app-session-cache';
+/** COUPLING: worker/handlers.py subscribes to this event name by literal.
+ *  Two languages, so it cannot be one import. Rename both together.
+ *  Indexed in .claude/FILEMAP.md. */
+export const ORDER_SHIPPED = 'order.shipped';
 ```
 
 ```sql
--- COUPLING: mirrors canManage() in src/hooks/usePermissions.ts. One predicate,
--- two languages: change one and the client and the policy disagree silently.
+-- COUPLING: these statuses mirror the OrderStatus union in src/types/order.ts.
+-- One list, two languages: add a status to one side only and either the insert
+-- fails at runtime or the client renders a value it has no label for.
 ```
 
 Rules:
@@ -89,9 +90,9 @@ Rules:
 ## The index line
 
 ```markdown
-- `src/providers/session.ts` ↔ `src/providers/auth.ts` — the cache key is duplicated
-  by literal (an import would close a require cycle). Rename together. Comments at
-  both sites.
+- `src/events/emit.ts` ↔ `worker/handlers.py` — the event names are duplicated by
+  literal across two languages; a rename on one side silently drops the event.
+  Rename together. Comments at both sites.
 ```
 
 - **Paths in backticks, repo-relative, in full.** A bare basename is ambiguous and the
@@ -124,16 +125,24 @@ leaves a line pointing at nothing, and the coupling it guarded is forgotten.
 node ~/.claude/skills/gate-scripts/scripts/filemap-check.mjs [map=.claude/FILEMAP.md]
 ```
 
-- Run from the repo root; paths resolve against the CWD.
-- Exit 1 on a dead path, printed as `map:line  path`. Exit 0 otherwise, and exit 0 with
-  one line when the repo has no map.
-- Only backticked, path-shaped spans outside fenced blocks are checked; globs, URLs and
-  package specifiers are skipped. A trailing `:42`, `:42-60` or `#L42` is stripped first.
+- With no argument it uses the first `.claude/FILEMAP.md` found walking up from the
+  CWD, and resolves cited paths against that map's repo root, so it gives the same
+  answer from any subdirectory. A map at any other path resolves against the CWD.
+- Exit 1 on a dead path, printed as `map:line  path`, and on an explicitly named map
+  that does not exist. Exit 0 otherwise, with one line when no map is found.
+- Only backticked, path-shaped spans outside fenced blocks are checked; globs, URLs,
+  package specifiers, `..` paths and anything under `node_modules/` are skipped.
+  Backslashes read as `/`. A trailing `:42`, `:42-60`, `:L42-L60` or `#L42` is
+  stripped first. A span naming an existing path with a space in it counts whole.
+- Not checked unless anchored with `./`: bare root dotfiles and extensionless root
+  files (cite `./.env`, `./Makefile`). Never checked: a path whose whole top-level
+  directory is gone, which reads exactly like a package specifier.
 - Suppress a sanctioned citation (an example path, a file generated at build time) with
   `<!-- filemap-ok: reason -->` on the line or the line above. No reason, no suppression.
 
-It runs from outside through `gates`; copy it in with `bootstrap.sh` only for a repo you
-own. There is no `--update` and no hash file, by design.
+`gates` runs it from outside, writing nothing into the repo; `bootstrap.sh` installs it
+as `npm run filemap:check` for a repo you own. There is no `--update` and no hash file,
+by design.
 
 ## Retiring a fat map
 

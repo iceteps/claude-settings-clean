@@ -60,17 +60,50 @@ const inI18nDir = (rel) => /(^|\/)i18n\//.test(rel) || /(^|\/)i18n\.tsx?$/.test(
    runner's per-repo state, so nothing is written into the project). Each gate
    reads only its own section. An unknown or mistyped key is an ERROR: a typo
    would otherwise switch a check off without a word. */
+/* COUPLING: hardcode-check.mjs, i18n-check.mjs and design-check.mjs each carry
+   an identical copy of loadGateConfig and KNOWN_SECTIONS (the scripts must stay
+   copyable one by one). A new section or a loader change moves all three. */
+const KNOWN_SECTIONS = ['hardcode', 'i18n', 'design'];
+
 function loadGateConfig(section, schema) {
   const paths = ['.claude/gate-config.json'];
   if (process.env.GATE_STATE_DIR) paths.push(join(process.env.GATE_STATE_DIR, 'gate-config.json'));
   const path = paths.find((p) => existsSync(p));
   if (!path) return { path: null, cfg: {} };
   const die = (why) => { console.error(`✖ ${path} [${section}]: ${why}`); process.exit(2); };
-  let cfg;
-  try { cfg = JSON.parse(readFileSync(path, 'utf8'))[section] ?? {}; } catch (e) { die(`unreadable JSON — ${e.message}`); }
+  const isPlainObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+  const raw = readFileSync(path, 'utf8');
+  let all;
+  try { all = JSON.parse(raw); } catch (e) { die(`unreadable JSON — ${e.message}`); }
+  if (!isPlainObj(all)) die('the top level must be an object of sections');
+  // JSON.parse keeps the LAST of two same-named sections, silently dropping the
+  // first. Walk the raw text and collect the keys at depth 1 to catch that.
+  const topKeys = [];
+  for (let i = 0, depth = 0; i < raw.length; i++) {
+    const c = raw[i];
+    if (c === '{' || c === '[') depth++;
+    else if (c === '}' || c === ']') depth--;
+    else if (c === '"') {
+      let j = i + 1;
+      while (j < raw.length && raw[j] !== '"') j += raw[j] === '\\' ? 2 : 1;
+      if (depth === 1 && /^\s*:/.test(raw.slice(j + 1))) topKeys.push(JSON.parse(raw.slice(i, j + 1)));
+      i = j;
+    }
+  }
+  const dup = topKeys.find((k, n) => KNOWN_SECTIONS.includes(k) && topKeys.indexOf(k) !== n);
+  if (dup !== undefined) die(`section "${dup}" appears more than once (JSON keeps only the last)`);
+  // A misspelt section ("hardcod") would otherwise leave every check it
+  // configures silently OFF and the run green.
+  for (const name of Object.keys(all)) {
+    if (!name.startsWith('//') && !KNOWN_SECTIONS.includes(name)) {
+      die(`unknown section "${name}" (known: ${KNOWN_SECTIONS.join(', ')})`);
+    }
+  }
+  const cfg = Object.hasOwn(all, section) ? all[section] : {};
+  if (!isPlainObj(cfg)) die(`section "${section}" must be an object`);
   for (const [k, v] of Object.entries(cfg)) {
     if (k.startsWith('//')) continue;
-    if (!(k in schema)) die(`unknown key "${k}" (known: ${Object.keys(schema).join(', ')})`);
+    if (!Object.hasOwn(schema, k)) die(`unknown key "${k}" (known: ${Object.keys(schema).join(', ')})`);
     if (!schema[k](v)) die(`key "${k}" has the wrong shape`);
   }
   return { path, cfg };
@@ -85,8 +118,11 @@ const { path: CONFIG_PATH, cfg: CONFIG } = loadGateConfig('hardcode', {
   legacyThrows: isStrList,
   /* errtext-display: { fns: ['errText'], baseline: { 'path/file.tsx': ['err'] } }.
      fns names the helpers that read a backend message's raw text; baseline maps
-     file → the argument identifiers whose display slot pre-dates the gate. */
-  errtextDisplay: (v) => isObj(v) && isStrList(v.fns ?? []) && isObj(v.baseline ?? {})
+     file → the argument identifier of each display slot that pre-dates the gate,
+     ONE ENTRY PER SLOT (a multiset: two baselined errText(err) slots in one file
+     are ['err', 'err'], so a third copy pasted beside them still fails). */
+  errtextDisplay: (v) => isObj(v) && isStrList(v.fns ?? []) && (v.fns ?? []).every((f) => /^[\w$]+$/.test(f))
+    && isObj(v.baseline ?? {})
     && Object.values(v.baseline ?? {}).every(isStrList)
     && Object.keys(v).every((k) => ['fns', 'baseline'].includes(k) || k.startsWith('//')),
   /* kit-copy: { helper: '_', allow: [...], baseline: [...] }. EXPLICIT file paths,
@@ -101,9 +137,12 @@ const { path: CONFIG_PATH, cfg: CONFIG } = loadGateConfig('hardcode', {
 const LEGACY_THROW_SENTENCES = new Set(CONFIG.legacyThrows ?? []);
 
 const ERRTEXT_FNS = CONFIG.errtextDisplay?.fns ?? [];
-const ERRTEXT_DISPLAY_BASELINE = new Map(
-  Object.entries(CONFIG.errtextDisplay?.baseline ?? {}).map(([f, ids]) => [f, new Set(ids)]),
-);
+/** `${file}::${arg}` → slots still allowed; decremented as slots are met, so
+ *  whatever is left over at the end is a STALE row. */
+const errtextAllowance = new Map();
+for (const [f, ids] of Object.entries(CONFIG.errtextDisplay?.baseline ?? {})) {
+  for (const id of ids) errtextAllowance.set(`${f}::${id}`, (errtextAllowance.get(`${f}::${id}`) ?? 0) + 1);
+}
 
 const KIT_COPY = CONFIG.kitCopy ?? null;
 const KIT_COPY_ALLOW = new Set(KIT_COPY?.allow ?? []);
@@ -188,6 +227,21 @@ function makeView(src, { blankStrings }) {
 
 const SUPPRESS_RE = /hardcode-ok\(\s*([a-z-]+(?:\s*,\s*[a-z-]+)*)\s*\)/;
 
+/** Sanctioned alternate SPELLINGS per class. `hardcode-ok(errtext-diagnostic)`
+ *  waives an errtext-display finding under the name of the pattern being
+ *  invoked (a small untranslated diagnostic detail line under a retry
+ *  affordance), which is what a reviewer should read at the call site — not
+ *  just "silence this class". */
+const SUPPRESS_ALIASES = { 'errtext-display': ['errtext-diagnostic'] };
+
+/** The suppression on `line` covering `cls` (or one of its aliases), else null. */
+function supMatch(suppressions, line, cls) {
+  const s = suppressions.get(line);
+  if (!s) return null;
+  const ok = s.classes.has(cls) || (SUPPRESS_ALIASES[cls] ?? []).some((a) => s.classes.has(a));
+  return ok ? s : null;
+}
+
 /** Map<lineNumber, { classes:Set<string>, declLine:number }> from RAW source. */
 function parseSuppressions(rawLines) {
   const map = new Map();
@@ -210,11 +264,15 @@ function parseSuppressions(rawLines) {
 const errors = [];
 const warnings = [];
 const legacyThrows = [];
+const legacyThrowsSeen = new Set();
+const errtextBaseline = [];
+const kitCopyBaseline = [];
+const kitCopyBaselineSeen = new Set(); // file
 let suppressedCount = 0;
 
 function report(level, file, line, cls, msg, text, suppressions) {
-  const sup = suppressions.get(line);
-  if (sup && sup.classes.has(cls)) {
+  const sup = supMatch(suppressions, line, cls);
+  if (sup) {
     sup.used = true;
     suppressedCount++;
     return;
@@ -355,7 +413,7 @@ function checkValidatorLiterals(code, rel, sup) {
     // prose-shaped: a word plus a space — 'Name is required', not a flag or code
     if (!(WORD.test(value) && /\s/.test(value))) continue;
     report('error', rel, lineOf(code, m.index), 'validator-literal',
-      "prose message inside a schema validator — it renders verbatim to users. Render t('key') from the field error state instead (sign-in.tsx pattern).",
+      "prose message inside a schema validator — it renders verbatim to users. Render t('key') from the field error state instead.",
       m[0], sup);
   }
 }
@@ -375,9 +433,74 @@ function checkRawError(code, rel, sup) {
     while ((m = MSG_RECEIVER_RE.exec(seg)) !== null) {
       if (!ERRISH.test(m[1])) continue;
       report('error', rel, lineOf(code, a + m.index), 'raw-error',
-        'raw error.message shown to the user — backend/SDK errors speak English. Route through errorMessage(e, t, fallbackKey) (src/lib/errors.ts).',
+        'raw error.message shown to the user — backend/SDK errors speak English. Route through the project errorMessage(e, t, fallbackKey) helper.',
         code.slice(a, a + seg.indexOf(')') + 1) || m[0], sup);
     }
+  }
+}
+
+// 4b. errtext-display — a raw-error-text helper (errtextDisplay.fns, e.g.
+//     errText) in a DISPLAY position: an argument inside showAlert(…) /
+//     Alert.alert(…) / confirmAction(…), or rendered as JSX text. Such a helper
+//     reads a backend/SDK message STRUCTURALLY — the right tool for
+//     CLASSIFICATION (raw.includes('SOME_CODE')), predicates and log lines — but
+//     the string it returns is the machine's raw English. As the PRIMARY
+//     user-facing message it must be errorMessage(err, t, fallbackKey).
+//     Classification reads belong on a hoisted `const raw = errText(e)`, which
+//     this check deliberately does not match.
+//     Runs on the string-BLANKED view: the call is code and survives; string
+//     contents and comments cannot fake a hit, and paren-depth spans cannot be
+//     derailed by a ')' inside a message literal.
+const ERRTEXT_CALL_RE = ERRTEXT_FNS.length
+  ? new RegExp(`(?<![\\w$])(?:${ERRTEXT_FNS.map((f) => f.replace(/\$/g, '\\$')).join('|')})\\s*\\(\\s*([\\w$.]*)`, 'g')
+  : null;
+const ERRTEXT_MSG =
+  `${ERRTEXT_FNS.join('/')}(...) displayed to the user — it returns the backend/SDK's raw English. ` +
+  'Display goes through errorMessage(err, t, fallbackKey); classification hoists ' +
+  '`const raw = <helper>(e)` first. The one sanctioned diagnostic slot ' +
+  '(an untranslated detail line under a retry affordance) suppresses with hardcode-ok(errtext-diagnostic).';
+
+function errTextHits(text) {
+  const hits = [];
+  ERRTEXT_CALL_RE.lastIndex = 0;
+  let m;
+  while ((m = ERRTEXT_CALL_RE.exec(text)) !== null) hits.push({ idx: m.index, arg: m[1] });
+  return hits;
+}
+
+function checkErrTextDisplay(blanked, rel, isTsx, sup) {
+  if (!ERRTEXT_CALL_RE) return;
+  const found = [];
+  // (a) dialog argument position
+  for (const [a, b] of callSpans(blanked, ALERT_CALL_RE)) {
+    for (const h of errTextHits(blanked.slice(a, b))) found.push({ at: a + h.idx, arg: h.arg });
+  }
+  // (b) JSX text position — {errText(...)} as an element/fragment child (same
+  //     span shape as jsx-text; interpolation braces stay structural here).
+  if (isTsx) {
+    for (const re of [/[\w"'’}\]/]>([^<>]*)</g, /<>([^<>]*)</g]) {
+      let m;
+      while ((m = re.exec(blanked)) !== null) {
+        re.lastIndex = m.index + m[0].length - 1; // '<' may open the next tag
+        const spanStart = m.index + m[0].length - 1 - m[1].length;
+        for (const h of errTextHits(m[1])) found.push({ at: spanStart + h.idx, arg: h.arg });
+      }
+    }
+  }
+  for (const f of found) {
+    const line = lineOf(blanked, f.at);
+    // An inline suppression WINS over the baseline, so moving a slot to its
+    // in-file hardcode-ok(errtext-diagnostic) before its baseline row is
+    // deleted cannot surface as an "unused suppression".
+    const slot = `${rel}::${f.arg}`;
+    if (!supMatch(sup, line, 'errtext-display') && (errtextAllowance.get(slot) ?? 0) > 0) {
+      errtextAllowance.set(slot, errtextAllowance.get(slot) - 1);
+      errtextBaseline.push({ file: rel, line });
+      continue;
+    }
+    const eol = blanked.indexOf('\n', f.at);
+    report('error', rel, line, 'errtext-display', ERRTEXT_MSG,
+      blanked.slice(f.at, Math.min(eol === -1 ? f.at + 60 : eol, f.at + 60)), sup);
   }
 }
 
@@ -426,12 +549,35 @@ function checkThrowSentence(code, rel, sup) {
     if (!msg.includes(' ')) continue; // single token — code-ish, fine
     if (CODE_MSG.test(msg)) continue; // 'NETWORK_TIMEOUT: create worksite' — code + log detail
     if (HOOK_GUARD.test(msg)) continue; // React context-guard idiom, dev-only
-    if (LEGACY_THROW_SENTENCES.has(msg)) {
-      legacyThrows.push({ file: rel, line: lineOf(code, m.index), text: msg });
+    const line = lineOf(code, m.index);
+    // An inline suppression WINS over the baseline (ratchet.md rule 7): a site
+    // moved to its own hardcode-ok(throw-sentence) must not read as unused.
+    if (LEGACY_THROW_SENTENCES.has(msg) && !supMatch(sup, line, 'throw-sentence')) {
+      legacyThrowsSeen.add(msg);
+      legacyThrows.push({ file: rel, line, text: msg });
       continue;
     }
-    report('error', rel, lineOf(code, m.index), 'throw-sentence',
-      "prose Error message — user-reachable errors must be stable CODES (throw new Error('SOME_CODE'), map in src/lib/errors.ts ERROR_KEYS; optional ': detail' suffix for logs).",
+    report('error', rel, line, 'throw-sentence',
+      "prose Error message — user-reachable errors must be stable CODES (throw new Error('SOME_CODE'), mapped to a translation key where errors are displayed; optional ': detail' suffix for logs).",
+      m[0], sup);
+  }
+}
+
+// 8. kit-copy — runs on the string-BLANKED view so a literal "_(" inside prose
+//    (or a comment) can never fire. Off unless config declares kitCopy.
+function checkKitCopy(view, rel, sup) {
+  if (!KIT_COPY_RE || KIT_COPY_ALLOW.has(rel)) return;
+  KIT_COPY_RE.lastIndex = 0;
+  let m;
+  while ((m = KIT_COPY_RE.exec(view)) !== null) {
+    const line = lineOf(view, m.index);
+    if (KIT_COPY_BASELINE.has(rel) && !supMatch(sup, line, 'kit-copy')) {
+      kitCopyBaseline.push({ file: rel, line });
+      kitCopyBaselineSeen.add(rel);
+      continue;
+    }
+    report('error', rel, line, 'kit-copy',
+      `inline \`${KIT_COPY.helper}(…)\` copy outside the files allowed to carry it — a label for REAL data must be t('key') with the key in every locale table, or key parity never sees it.`,
       m[0], sup);
   }
 }
@@ -519,8 +665,9 @@ for (const file of files) {
   const isTsx = rel.endsWith('.tsx');
 
   if (!isLocaleFile) {
+    const blanked = makeView(raw, { blankStrings: true });
+    checkKitCopy(blanked, rel, sup);
     if (isTsx) {
-      const blanked = makeView(raw, { blankStrings: true });
       checkJsxText(blanked, rel, sup);
       checkPropLiterals(code, rel, sup);
       checkFallbackLiteral(code, rel, sup);
@@ -528,6 +675,7 @@ for (const file of files) {
     checkAlertLiterals(code, rel, sup);
     checkValidatorLiterals(code, rel, sup);
     checkRawError(code, rel, sup);
+    checkErrTextDisplay(blanked, rel, isTsx, sup);
     if (!inI18nDir(rel)) {
       checkLocaleBranch(code, rel, sup);
       checkLocaleFormat(code, rel, sup);
@@ -557,8 +705,33 @@ const byRule = (list) => {
 console.log(`hardcode check — scanned ${files.length} files in ${SRC}/` +
   (suppressedCount ? ` (${suppressedCount} finding(s) suppressed via hardcode-ok)` : ''));
 
+/* Ratchet bookkeeping. A STALE row (its violation is gone) is reported so it
+   is deleted: left in place it would silently re-admit that exact violation.
+   File-keyed rows are judged only for files inside this run's root, since the
+   gate runs once per source tree. legacyThrows is keyed by sentence, not file,
+   so it reports coverage instead of staleness. */
+const SRC_REL = relative('.', SRC).split('\\').join('/');
+const inRun = (f) => SRC_REL === '' || f === SRC_REL || f.startsWith(`${SRC_REL}/`);
+const cfgName = CONFIG_PATH ?? 'gate-config.json';
+const staleRows = [
+  ...[...errtextAllowance].filter(([slot, left]) => left > 0 && inRun(slot.split('::')[0]))
+    .map(([slot, left]) => `hardcode.errtextDisplay.baseline: ${slot.replace('::', ' → ')}${left > 1 ? ` (×${left})` : ''}`),
+  ...[...KIT_COPY_BASELINE].filter((f) => inRun(f) && !kitCopyBaselineSeen.has(f))
+    .map((f) => `hardcode.kitCopy.baseline: ${f}`),
+];
+
 if (legacyThrows.length) {
-  console.log(`ℹ  ${legacyThrows.length} legacy sentence throw(s) on the ratchet baseline (LEGACY_THROW_SENTENCES) — convert to codes over time; new sentences FAIL.`);
+  console.log(`ℹ  ${legacyThrows.length} legacy sentence throw(s) on the ratchet baseline (${cfgName} hardcode.legacyThrows, ${legacyThrowsSeen.size} of ${LEGACY_THROW_SENTENCES.size} listed sentences seen here) — convert to codes over time; new sentences FAIL.`);
+}
+if (errtextBaseline.length) {
+  console.log(`ℹ  ${errtextBaseline.length} diagnostic slot(s) on the errtext-display ratchet baseline (${cfgName}) — move each to an inline hardcode-ok(errtext-diagnostic) and delete its row; new displays FAIL.`);
+}
+if (kitCopyBaseline.length) {
+  console.log(`ℹ  ${kitCopyBaseline.length} inline-copy call(s) on the kit-copy ratchet baseline (${cfgName}) — promote the strings to t() keys and delete the file's row; new files FAIL.`);
+}
+if (staleRows.length) {
+  console.log(`\n⚠  ${staleRows.length} STALE ratchet row(s) in ${cfgName} — the violation is gone; delete the row so it cannot come back:`);
+  for (const r of staleRows) console.log(`   - ${r}`);
 }
 
 if (unusedSuppressions.length) {

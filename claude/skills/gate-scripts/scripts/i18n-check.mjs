@@ -15,16 +15,117 @@
  * '{{count}} entries' and he drops the {{count}}, both compile and the number
  * silently never renders. That is the check below, and it is a hard failure.
  *
- * Usage: node scripts/i18n-check.mjs
+ * SURFACES vs. THE TABLES. One set of tables (default `src/i18n/`) can serve
+ * several surfaces — say a native app in `src/` and a web app in `web/src/`
+ * importing the same tables through an alias. The scan root and the table
+ * location are then two different things, and conflating them breaks the gate
+ * the moment a second consumer appears:
+ *   - a run on the second surface looked for `<root>/i18n` and crashed, so the
+ *     surface was never wired into the verify chain at all;
+ *   - orphan detection is only meaningful across ALL consumers — scanning one
+ *     surface alone reports every key only the other one renders as unused.
+ * Hence: the tables are located once (below), the PRIMARY run credits usage
+ * from every consumer surface, and an AUXILIARY run (a scan root that does not
+ * own the tables) reports only what is local to it — the missing keys.
+ *
+ * Config (gate-config.json, section `i18n`; see loadGateConfig below):
+ *   tablesDir      where en.ts lives when the scan root has no i18n/ of its own
+ *                  (default: src/i18n)
+ *   consumerRoots  the OTHER trees that call t() against these tables, credited
+ *                  for orphan detection on the primary run (default: none)
+ *
+ * Usage: node scripts/i18n-check.mjs [scan-root]   (scan-root defaults to src)
  */
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { join, relative, sep } from 'node:path';
+
+/* ── per-project config ──────────────────────────────────────────────────────
+   Project specifics (where the tables live, which trees consume them) live in
+   JSON, never in this script. A repo-committed `.claude/gate-config.json` wins
+   (a repo that carries its own bar); else `$GATE_STATE_DIR/gate-config.json`
+   (the external runner's per-repo state, so nothing is written into the
+   project). Each gate reads only its own section. An unknown or mistyped key is
+   an ERROR: a typo would otherwise switch a check off without a word. */
+/* COUPLING: hardcode-check.mjs, i18n-check.mjs and design-check.mjs each carry
+   an identical copy of loadGateConfig and KNOWN_SECTIONS (the scripts must stay
+   copyable one by one). A new section or a loader change moves all three. */
+const KNOWN_SECTIONS = ['hardcode', 'i18n', 'design'];
+
+function loadGateConfig(section, schema) {
+  const paths = ['.claude/gate-config.json'];
+  if (process.env.GATE_STATE_DIR) paths.push(join(process.env.GATE_STATE_DIR, 'gate-config.json'));
+  const path = paths.find((p) => existsSync(p));
+  if (!path) return { path: null, cfg: {} };
+  const die = (why) => { console.error(`✖ ${path} [${section}]: ${why}`); process.exit(2); };
+  const isPlainObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+  const raw = readFileSync(path, 'utf8');
+  let all;
+  try { all = JSON.parse(raw); } catch (e) { die(`unreadable JSON — ${e.message}`); }
+  if (!isPlainObj(all)) die('the top level must be an object of sections');
+  // JSON.parse keeps the LAST of two same-named sections, silently dropping the
+  // first. Walk the raw text and collect the keys at depth 1 to catch that.
+  const topKeys = [];
+  for (let i = 0, depth = 0; i < raw.length; i++) {
+    const c = raw[i];
+    if (c === '{' || c === '[') depth++;
+    else if (c === '}' || c === ']') depth--;
+    else if (c === '"') {
+      let j = i + 1;
+      while (j < raw.length && raw[j] !== '"') j += raw[j] === '\\' ? 2 : 1;
+      if (depth === 1 && /^\s*:/.test(raw.slice(j + 1))) topKeys.push(JSON.parse(raw.slice(i, j + 1)));
+      i = j;
+    }
+  }
+  const dup = topKeys.find((k, n) => KNOWN_SECTIONS.includes(k) && topKeys.indexOf(k) !== n);
+  if (dup !== undefined) die(`section "${dup}" appears more than once (JSON keeps only the last)`);
+  // A misspelt section ("hardcod") would otherwise leave every check it
+  // configures silently OFF and the run green.
+  for (const name of Object.keys(all)) {
+    if (!name.startsWith('//') && !KNOWN_SECTIONS.includes(name)) {
+      die(`unknown section "${name}" (known: ${KNOWN_SECTIONS.join(', ')})`);
+    }
+  }
+  const cfg = Object.hasOwn(all, section) ? all[section] : {};
+  if (!isPlainObj(cfg)) die(`section "${section}" must be an object`);
+  for (const [k, v] of Object.entries(cfg)) {
+    if (k.startsWith('//')) continue;
+    if (!Object.hasOwn(schema, k)) die(`unknown key "${k}" (known: ${Object.keys(schema).join(', ')})`);
+    if (!schema[k](v)) die(`key "${k}" has the wrong shape`);
+  }
+  return { path, cfg };
+}
+const isStrList = (v) => Array.isArray(v) && v.every((x) => typeof x === 'string');
+
+const { cfg: CONFIG } = loadGateConfig('i18n', {
+  tablesDir: (v) => typeof v === 'string' && v.length > 0,
+  consumerRoots: isStrList,
+});
 
 const ROOT = process.cwd();
-// Directory to scan — argv[2] so the perimeter can grow (web/ is a surface too).
+// Directory to scan — argv[2] so the perimeter can grow (a second surface too).
 const SRC = join(ROOT, process.argv[2] || 'src');
-const I18N_DIR = join(SRC, 'i18n');
+
+/** Where the tables actually are: inside the scan root, or the configured home. */
+const I18N_DIR = existsSync(join(SRC, 'i18n'))
+  ? join(SRC, 'i18n')
+  : join(ROOT, CONFIG.tablesDir ?? join('src', 'i18n'));
 const EN_PATH = join(I18N_DIR, 'en.ts');
+if (!existsSync(EN_PATH)) {
+  console.error(`✖ i18n check: no en.ts at ${relative(ROOT, EN_PATH)} — set i18n.tablesDir in gate-config.json, or pass the scan root that owns the tables.`);
+  process.exit(1);
+}
+
+/** The run that reports on the TABLES (orphans, locale drift): the one whose
+ *  scan root owns them, or — when they live outside every scan root
+ *  (i18n.tablesDir) — the default run with no scan-root argument. Otherwise
+ *  nothing would ever check them. Path-segment aware: `src2/i18n` is not
+ *  inside `src`. */
+const IS_PRIMARY = I18N_DIR.startsWith(SRC + sep) || !process.argv[2];
+
+/** Every tree that calls `t()` against these tables. Used for orphan credit on
+ *  the primary run, so a key that only another surface renders is not "unused". */
+const CONSUMER_ROOTS = [SRC, ...(IS_PRIMARY ? (CONFIG.consumerRoots ?? []).map((d) => join(ROOT, d)) : [])]
+  .filter((d) => existsSync(d));
 
 /** Every locale file except en.ts (the source of truth) is validated below —
  *  drop a new ar.ts/ru.ts into src/i18n and it is checked with NO change here. */
@@ -109,12 +210,12 @@ function isTranslatable(value) {
   // '+{{count}}'. Strip the placeholders and see if any real word survives.
   const withoutVars = v.replace(/\{\{\s*[a-zA-Z0-9_]+\s*\}\}/g, '');
   if (!/[A-Za-z]{3,}/.test(withoutVars)) return false;
-  // Acronyms, brand and format masks: 'CSV', 'PDF', 'GPS', 'MYAPP',
+  // Acronyms, brand and format masks: 'CSV', 'PDF', 'GPS', a product name,
   // 'YYYY-MM-DD', 'HH:MM'. No lowercase letter anywhere = not prose.
   if (!/[a-z]/.test(withoutVars)) return false;
   // Sample email addresses ('you@company.com') stay Latin.
   if (v.includes('@')) return false;
-  // Filename templates ('myapp-timesheet-{{date}}') must stay ASCII-safe.
+  // Filename templates ('app-timesheet-{{date}}') must stay ASCII-safe.
   if (!/\s/.test(withoutVars) && /^[a-z0-9._-]+$/.test(withoutVars)) return false;
   return true;
 }
@@ -136,40 +237,50 @@ function extractUsedKeys(src) {
 const enSrc = readFileSync(EN_PATH, 'utf8');
 const defined = extractDefinedKeys(enSrc);
 
-const files = collectFiles(SRC);
-const usedLiterals = new Set();
-const usedPrefixes = new Set();
-const perFileUsages = []; // [{ file, key }]
-
 // Also look for ROLE_KEYS-style string arrays of i18n keys: `'contacts.landOwner',`
 // Any bare string literal that matches a defined key counts as used.
 const bareKeyRe = /['"]([a-zA-Z0-9_]+\.[a-zA-Z0-9_.]+)['"]/g;
 
-for (const f of files) {
-  const src = readFileSync(f, 'utf8');
-  const { literalKeys, templatePrefixes } = extractUsedKeys(src);
-  for (const k of literalKeys) {
-    usedLiterals.add(k);
-    perFileUsages.push({ file: f, key: k });
-  }
-  for (const p of templatePrefixes) usedPrefixes.add(p);
+/** Every t() key and template prefix used anywhere under `root`. */
+function collectUsage(root) {
+  const literals = new Set();
+  const prefixes = new Set();
+  for (const f of collectFiles(root)) {
+    const src = readFileSync(f, 'utf8');
+    const { literalKeys, templatePrefixes } = extractUsedKeys(src);
+    for (const k of literalKeys) literals.add(k);
+    for (const p of templatePrefixes) prefixes.add(p);
 
-  // Bare key literals (e.g. inside an array) — only count those that match a defined key
-  let m;
-  while ((m = bareKeyRe.exec(src)) !== null) {
-    if (defined.has(m[1])) usedLiterals.add(m[1]);
+    bareKeyRe.lastIndex = 0;
+    let m;
+    while ((m = bareKeyRe.exec(src)) !== null) {
+      if (defined.has(m[1])) literals.add(m[1]);
+    }
   }
+  return { literals, prefixes };
+}
+
+// MISSING is about THIS surface: a key it calls that no table defines.
+const { literals: usedLiterals, prefixes: usedPrefixes } = collectUsage(SRC);
+// ORPHAN is about the tables, so it is judged against EVERY consumer surface —
+// a key only the web renders is used, not dead.
+const allUsed = { literals: new Set(usedLiterals), prefixes: new Set(usedPrefixes) };
+for (const root of CONSUMER_ROOTS) {
+  if (root === SRC) continue;
+  const extra = collectUsage(root);
+  for (const k of extra.literals) allUsed.literals.add(k);
+  for (const p of extra.prefixes) allUsed.prefixes.add(p);
 }
 
 // Orphans: defined but not used via literal and not matched by any template prefix
 const orphans = [];
-for (const k of defined) {
-  if (usedLiterals.has(k)) continue;
+for (const k of IS_PRIMARY ? defined : []) {
+  if (allUsed.literals.has(k)) continue;
   // A template prefix may span MULTIPLE dot segments (t(`expenses.category.${c}`),
   // t(`timeForm.entryType.${mode}`)) — match by startsWith, not first segment.
-  if ([...usedPrefixes].some((p) => k.startsWith(p))) continue;
+  if ([...allUsed.prefixes].some((p) => k.startsWith(p))) continue;
   // `foo_one` is reached via t('foo', { count }) — credit the base key's usage.
-  if (PLURAL_VARIANT_RE.test(k) && usedLiterals.has(k.replace(PLURAL_VARIANT_RE, ''))) continue;
+  if (PLURAL_VARIANT_RE.test(k) && allUsed.literals.has(k.replace(PLURAL_VARIANT_RE, ''))) continue;
   orphans.push(k);
 }
 
@@ -180,7 +291,8 @@ const missing = [...usedLiterals].filter((k) => !defined.has(k));
 const formatList = (arr) => arr.sort().map((k) => `  - ${k}`).join('\n');
 
 let exitCode = 0;
-console.log(`i18n check — ${defined.size} keys defined in en.ts, ${usedLiterals.size} literals used, ${usedPrefixes.size} template prefixes`);
+const scanLabel = relative(ROOT, SRC) || '.';
+console.log(`i18n check [${scanLabel}${IS_PRIMARY ? '' : ' · surface'}] — ${defined.size} keys defined in ${relative(ROOT, EN_PATH)}, ${usedLiterals.size} literals used, ${usedPrefixes.size} template prefixes`);
 console.log();
 
 if (missing.length > 0) {
@@ -200,14 +312,18 @@ if (orphans.length > 0) {
 /* ── locale-file parity: placeholders and untranslated values ──────────────
    Key parity is the compiler's job (every locale file is typed `Translations`).
    These are the two failure modes it cannot see. Runs for EVERY locale file in
-   src/i18n except en.ts. */
+   src/i18n except en.ts.
 
-const enEntries = extractEntries(enSrc);
+   PRIMARY RUN ONLY. This section reads the tables, not the scan root, so an
+   auxiliary surface run would print the identical report a second time inside
+   one `npm run verify` — noise that is how a gate stops being read. */
+
+const enEntries = IS_PRIMARY ? extractEntries(enSrc) : new Map();
 
 // An entry the value-parser can't read (e.g. a trailing comment on the line)
 // would silently EVADE the placeholder-drift check below — the key-parser is
 // laxer than the value-parser, so compare their counts and fail loudly.
-if (enEntries.size !== defined.size) {
+if (IS_PRIMARY && enEntries.size !== defined.size) {
   exitCode = 1;
   const unparsed = [...defined].filter((k) => !enEntries.has(k));
   console.log(`❌ ${unparsed.length} entr(ies) in en.ts evade the value parser — placeholder drift is UNCHECKED for:`);
@@ -217,7 +333,7 @@ if (enEntries.size !== defined.size) {
 
 let anyDriftOrUntranslated = false;
 
-for (const localePath of LOCALE_PATHS) {
+for (const localePath of IS_PRIMARY ? LOCALE_PATHS : []) {
   const localeName = relative(I18N_DIR, localePath);
   const locEntries = extractEntries(readFileSync(localePath, 'utf8'));
 
@@ -272,7 +388,9 @@ for (const localePath of LOCALE_PATHS) {
 }
 
 if (missing.length === 0 && orphans.length === 0 && !anyDriftOrUntranslated) {
-  console.log('✓ All good — no missing or orphan keys, no placeholder drift, nothing untranslated.');
+  console.log(IS_PRIMARY
+    ? '✓ All good — no missing or orphan keys, no placeholder drift, nothing untranslated.'
+    : `✓ Every t() key this surface calls exists in ${relative(ROOT, EN_PATH)} (orphans and locale drift are the primary run's report).`);
 }
 
 process.exit(exitCode);

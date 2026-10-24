@@ -1,6 +1,6 @@
 ---
 name: limit-recover
-description: A session or usage limit killed an agent, a workflow lane, a batch run or the main loop. Checkpoint the exact resume point, tell the owner immediately with the options (usage credits, one model rung down at max effort, wait for the reset), then resume from where it died without re-running what succeeded. Use the MOMENT a limit error appears ("hit your session limit", "usage limit reached", "resets at"), before doing anything else.
+description: A session or usage limit killed an agent, a workflow lane, a batch run or the main loop. Checkpoint the exact resume point, tell the owner immediately with the options (usage credits, one model rung down at max effort, wait for the reset), then resume from where it died without re-running what succeeded. Use the MOMENT a limit error appears ("hit your session limit", "usage limit reached", "resets 9:20pm"-style reset notices, "usage_limit_reached"), before doing anything else.
 ---
 
 # limit-recover — a limit is a pause, never a loss
@@ -13,8 +13,8 @@ tree and no record of what was missing.
 
 - **A run killed by a limit is an ERROR, never a pass and never a fail-on-merit.** It is
   recorded as an error and resumed. Any harness that counts results must treat it that
-  way: `~/.claude/skills/rule-loop/scripts/comply.py` records a limit-killed session as
-  `error`, cancels the remaining sessions instead of spending them on the same failure,
+  way. For example, rule-loop's `comply.py` records a limit-killed session as `error`,
+  cancels the sessions not yet started instead of spending them on the same failure,
   and prints the exact resume command; its resume retries errored sessions as well as
   missing ones. A new batch tool copies that contract.
 - **A limit error is not a code defect.** Never "fix" anything in response to it.
@@ -27,7 +27,8 @@ tree and no record of what was missing.
 ### 1. Checkpoint before anything else
 
 Limits arrive mid-write; an uncommitted tree plus a dead orchestrator is how work gets
-redone. Append to the project's `WORKFLOW_LOG.md`:
+redone. Append (never rewrite; `cat >>` or Edit) to the project's `WORKFLOW_LOG.md` in
+its gitignored working-docs folder (default `plans/`):
 
 - The run's resume handles: script path and run id (from the launch result and the
   failure notification's diagnostics), or the batch tool's run id.
@@ -59,9 +60,9 @@ choice costs), not a bare "hit a limit". Offer, ranked:
 ### 3. Resume; do not re-run what succeeded
 
 - Resume the same run with the same script and the same arguments: completed items
-  replay from cache or are skipped by their result files. Editing the script
-  invalidates every item from the first edited call onward; edit only the dead lane's
-  prompt when you must.
+  replay from cache or are skipped by their result files. In a workflow tool that caches
+  by call position, editing the script invalidates every item from the first edited call
+  onward; edit only the dead lane's prompt when you must.
 - If the tree changed since the run started (you committed in step 1), say so in the
   resumed lane's prompt; its file-state assumptions may be stale.
 - If a lane half-wrote its files before dying, tell the resumed lane to AUDIT the
