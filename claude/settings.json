@@ -1,5 +1,10 @@
 {
-  "model": "opus",
+  "env": {
+    "IMPECCABLE_DOWNLOAD_BASE": "https://download-blocked.invalid",
+    "IMPECCABLE_NO_TELEMETRY": "1",
+    "IMPECCABLE_NO_UPDATE_CHECK": "1"
+  },
+  "model": "fable",
   "hooks": {
     "PreToolUse": [
       {
@@ -45,6 +50,10 @@
       }
     ]
   },
+  "statusLine": {
+    "type": "command",
+    "command": "$HOME/.claude/statusline.sh"
+  },
   "enabledPlugins": {
     "impeccable@impeccable": true,
     "figma@claude-plugins-official": false,
@@ -67,19 +76,10 @@
       "effortLevel": "xhigh"
     }
   },
-  "statusLine": {
-    "type": "command",
-    "command": "$HOME/.claude/statusline.sh"
-  },
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
   "skipWorkflowUsageWarning": true,
   "theme": "dark",
   "switchModelsOnFlag": false,
-  "agentPushNotifEnabled": true,
-  "env": {
-    "IMPECCABLE_DOWNLOAD_BASE": "https://download-blocked.invalid",
-    "IMPECCABLE_NO_TELEMETRY": "1",
-    "IMPECCABLE_NO_UPDATE_CHECK": "1"
-  }
+  "agentPushNotifEnabled": true
 }
