@@ -24,11 +24,11 @@
     "frontend-design@claude-plugins-official": [
       {
         "scope": "user",
-        "installPath": "~/.claude/plugins/cache/claude-plugins-official/frontend-design/58267944f921",
-        "version": "58267944f921",
+        "installPath": "~/.claude/plugins/cache/claude-plugins-official/frontend-design/1da406f428c2",
+        "version": "1da406f428c2",
         "installedAt": "2026-08-16T18:03:28.855Z",
-        "lastUpdated": "2026-10-23T21:52:29.194Z",
-        "gitCommitSha": "58267944f92187b7d6a1c822165c96c81c864806"
+        "lastUpdated": "2026-10-26T23:47:39.297Z",
+        "gitCommitSha": "1da406f428c285c701a1033a3aef368a9ab865dc"
       }
     ],
     "figma@claude-plugins-official": [
