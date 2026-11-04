@@ -105,6 +105,9 @@ starting, the same way you read the project ledger.
 - **Automatic:** `~/.claude/hooks/pre-commit-verify.sh` runs a project's own bar
   before every `git commit` in every repo (project gate if present, else
   `npm run verify`, else silent pass). It cannot be forgotten.
+- **Automatic:** `~/.claude/hooks/agent-launch-guard.py` blocks an agent's shell from starting
+  Codex or headless Claude by hand. `cross-review` and `agent-check` run Codex jailed; the owner's
+  own `!` commands are not affected.
 - **NOT automatic:** everything above. A skill loads only when someone judges it
   relevant. That judgement is the weak link, which is why this table exists and
   why the review paths (`gauntlet`, `verify-deep`, `lane-reviewer`) name the

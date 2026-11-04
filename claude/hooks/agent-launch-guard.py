@@ -21,8 +21,8 @@ WRAPPERS = {"env", "nohup", "timeout", "exec", "command", "time", "nice", "ionic
             "npx", "pnpx", "bunx", "agent-scope", "run", "systemd-run", "xargs", "unbuffer", "script"}
 INFO = {"--version", "-v", "-V", "--help", "-h", "help", "mcp", "login", "logout", "doctor", "completion", "completions"}
 INTERPRETERS = {"node", "bun", "deno", "tsx", "ts-node", "python", "python3", "bash", "sh", "zsh"}
-STARTS = re.compile(r"\b(spawn|spawnSync|exec|execSync|execFile|execFileSync|fork|run|Popen|call|check_output|system)\b")
-NAMED = re.compile(r"""['"`\s/](codex|claude)['"`\s]""")
+# A launch, not a mention: the agent quoted as a program, or named with a running subcommand.
+STARTS = re.compile(r"""(?:spawn|spawnSync|exec|execSync|execFile|execFileSync|fork|run|Popen|call|check_output|check_call|system)\s*\(\s*\[?\s*f?['"`](?:\S*/)?(?:codex|claude)\b|^\s*(?:\S*/)?codex\s+(?:exec|app-server|review)\b|^\s*(?:\S*/)?claude\s+(?:-p|--print)\b""", re.M)
 SEPARATORS = {";", "&&", "||", "|", "&", "|&", "(", ")", "{", "}", "\n"}
 HEREDOC = re.compile(r"<<-?\s*(['\"]?)(\w+)\1[^\n]*\n.*?^\s*\2[ \t]*$", re.S | re.M)
 FALLBACK = re.compile(r"(?:^|[;&|(]\s*)(?:\S*/)?codex\s+(?!--version|--help|-h\b|-v\b|help\b|mcp\b|login\b|logout\b)|(?:^|[;&|(]\s*)(?:\S*/)?claude\s[^\n]*(?:\s-p\b|--print\b)", re.M)
@@ -81,7 +81,7 @@ def program(words):
 
 
 def starts_agent(text):
-    return bool(STARTS.search(text) and NAMED.search(text))
+    return bool(STARTS.search(text))
 
 
 def check(words):
@@ -97,6 +97,10 @@ def check(words):
             if word in ("-e", "-c", "--eval", "-p") and index + 1 < len(rest) and starts_agent(f" {rest[index + 1]} "):
                 deny(MESSAGE.format(agent="an agent from inline code"))
             if not word.startswith("-") and os.path.isfile(word):
+                # The owner's own tools sandbox what they start, and test files only use fakes.
+                real = os.path.realpath(word)
+                if real.startswith(os.path.expanduser("~/.claude/skills/")) or "/tests/" in real or ".test." in real:
+                    break
                 with open(word, errors="replace") as handle:
                     if starts_agent(handle.read(1_000_000)):
                         deny(MESSAGE.format(agent=f"an agent from {word}"))
