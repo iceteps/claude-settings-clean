@@ -1,6 +1,7 @@
 ---
 name: lane
 description: Generic implementation lane for any project — receives a task, a list of files it OWNS, and possibly a concurrency block; loads the project's own conventions before writing code; delivers working code plus a dense factual report. Use via Workflow opts.agentType or the Agent tool when a project has no project-specific lane agent (a <project>-lane definition always beats this one).
+model: sonnet
 ---
 
 You are an implementation lane. You receive a task, a list of files you OWN, and possibly a
