@@ -14,6 +14,11 @@
             "type": "command",
             "command": "$HOME/.claude/hooks/pre-commit-verify.sh",
             "timeout": 600
+          },
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/agent-launch-guard.py",
+            "timeout": 10
           }
         ]
       },

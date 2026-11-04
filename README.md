@@ -17,7 +17,7 @@ preferences removed, so it updates whenever the source does.
 
 <!-- inventory:start -->
 
-Generated from the files in this repo: 23 skills, 2 agents, 4 hooks, 4 commands.
+Generated from the files in this repo: 23 skills, 2 agents, 5 hooks, 4 commands.
 
 ### Skills (`claude/skills/`)
 
@@ -58,6 +58,7 @@ Generated from the files in this repo: 23 skills, 2 agents, 4 hooks, 4 commands.
 
 | Name | What it does |
 |---|---|
+| `agent-launch-guard.py` | Agent launch guard: an agent's shell may not start Codex, or Claude headless, by hand. |
 | `boundary-fence.py` | The "stay inside the declared boundary" rule (CLAUDE.md, Doing the work), enforced instead of remembered. |
 | `doctrine-nudge.sh` | A MECHANICAL trigger for knowledge that would otherwise depend on remembering. |
 | `pre-commit-verify.sh` | Runs a project's OWN verification bar before any `git commit`, in every repo, without each repo having to remember to wire it. |
