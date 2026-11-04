@@ -212,8 +212,11 @@ before any rule covered it. Pass rates: `comply list`.
 
 ## Machine-wide
 
-- **Claude and Codex share these rules.** The owner also uses Codex. `~/.codex/AGENTS.md` only points at this file — change rules HERE, never copy them
-  into AGENTS.md, and never recreate `~/AGENTS.md` (Claude Code loads it too).
+- **Codex gets a generated copy of these rules, with nothing personal in it.** The owner falls back
+  to Codex when Claude credit lapses. Change rules HERE, then run `codex-rules`: a new or changed rule
+  fails until it is classified in `agent-tools/codex-rules.json`, and `codex-safe` refuses until then.
+  The owner starts Codex with `codex-safe`, which hides everything outside the repository. Never point
+  `~/.codex/AGENTS.md` back at this file, and never recreate `~/AGENTS.md` (Claude Code loads it too).
 - **Long operations survive disconnects.** Anything over a few minutes runs as a systemd transient
   unit with an idempotent retry script and a DONE marker. Plain `&`/nohup/setsid do NOT survive
   the agent's tool shell. Default to it; don't ask each time.
