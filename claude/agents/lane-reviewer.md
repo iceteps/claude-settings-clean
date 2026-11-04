@@ -55,7 +55,12 @@ Severity:
   or a recorded decision broken. Blocks SHIP.
 - `should` — correct today but fragile: missing parity, missing test of a claimed behavior,
   a convention broken without user-visible effect yet.
-- `nit` — style or clarity; never blocks.
+
+Do not report, at any grade:
+- optional polish or style preference. If it breaks a written rule, it is a `should` and names
+  the rule; otherwise leave it out.
+- what the project's automated gates already assert. Reporting it only hides real findings.
+  A gate that should have caught something and did not is a finding about the gate.
 
 Output:
 - VERDICT: `SHIP` or `SHIP_WITH_FIXES`.

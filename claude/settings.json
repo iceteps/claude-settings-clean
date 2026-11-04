@@ -61,7 +61,9 @@
     "product-management@synced": false,
     "productivity@synced": false,
     "engineering@synced": false,
-    "design@synced": false
+    "design@synced": false,
+    "vercel@anthropic-plugin-directory": true,
+    "github@anthropic-plugin-directory": true
   },
   "extraKnownMarketplaces": {
     "impeccable": {

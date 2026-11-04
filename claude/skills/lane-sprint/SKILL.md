@@ -59,7 +59,7 @@ class keeps its reviewer regardless of diff size.
   say so in the prompt or the reviewer burns tokens chasing them.
 - Demand the reviewer's standard output (format and severities defined in
   `~/.claude/agents/lane-reviewer.md`): VERDICT `SHIP` / `SHIP_WITH_FIXES`; DEFECTS ranked
-  blocker/should/nit, each with a concrete failing input and a fix mechanical enough for the
+  blocker/should, each with a concrete failing input and a fix mechanical enough for the
   parent to apply without respawning; REFUTED; CONFIRMED with evidence; PRIOR FIXES; NOTES.
 - On a re-review round the reviewer re-verifies every prior finding's fix against the
   current diff — the parent's or lane's change summary is just another claim.

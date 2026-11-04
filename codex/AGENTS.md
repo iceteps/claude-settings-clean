@@ -6,6 +6,8 @@ drift: before any work, read and follow these files in full.
 1. `~/.claude/CLAUDE.md` — the binding global rules and the toolkit index.
 2. `~/.claude/projects/-home-<you>/memory/MEMORY.md` — the memory index; open the
    linked files that bear on the task.
+   Also read `~/.claude/projects/<project path with / as ->/memory/MEMORY.md` when
+   present, for example `-home-<you>-Projects-MYAPP`. Claude keeps per-project memory there.
 3. In a repo: its `CLAUDE.md`, `.claude/docs/decisions.md` (the decision ledger) and
    `plans/WORKFLOW_LOG.md`.
 

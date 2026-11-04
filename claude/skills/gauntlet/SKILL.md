@@ -16,15 +16,16 @@ the bar includes the project's tests and honest reporting.
 2. **Adversarial review** — a reviewer agent that verifies claims against the
    REAL diff, not the implementer's summary, and runs whatever checks it can.
    Verdict SHIP / SHIP_WITH_FIXES, with file-exact findings graded
-   blocker / should / nit (defined in `~/.claude/agents/lane-reviewer.md`);
-   any open blocker or should finding means the batch does not ship.
+   blocker / should (defined in `~/.claude/agents/lane-reviewer.md`, with what
+   is not reported at all); any open finding means the batch does not ship.
+   For an independent second agent on committed work, run `cross-review` (Codex
+   by default, `--reviewer claude` for the other direction): exit 0 SHIP, 1 fixes,
+   3 means the review itself failed, which is never a pass.
 3. **Apply every finding** — or justify each skip explicitly in the report.
    Blocker and should findings are never skipped.
 4. **Re-review the fixed state.** The reviewer re-verifies EVERY prior
    finding's fix against the current diff — the change summary is just another
-   claim. Repeat 2–4 until SHIP with zero blocker/should findings open. A nit
-   fix may land without a full re-review round IF the fix itself is verified
-   (run the affected test/gate).
+   claim. Repeat 2–4 until SHIP with zero findings open.
 
 ## The bar (before any commit)
 
