@@ -207,6 +207,10 @@ before any rule covered it. Pass rates: `comply list`.
 - **Snapshot before deletions and big edits**, especially where there is no git history. Print
   what an index-range replace would remove before removing it; after a structural edit, check
   the seam (which functions still exist), not just that the file parses.
+- **Prove the copy, then delete the backup.** Owner directive 2026-11-05, after backups were
+  deleted and their copies checked only afterwards: *"make sure this wont happen again"*. Use
+  `backup-retire`, which checks the bytes first and deletes nothing unless every file is proven.
+  The `backup-delete-guard.py` hook denies deleting backup-looking paths by shell.
 - **Every tool built for the owner gets a README and a user guide** (what, install, usage, how
   it works), structured to become a small public GitHub repo once the owner calls it finished.
 

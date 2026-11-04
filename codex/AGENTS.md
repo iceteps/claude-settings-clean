@@ -54,5 +54,6 @@ In a repository, also follow its CLAUDE.md, .claude/docs/decisions.md and plans/
 ## Safety
 
 - **Snapshot first.** Before a deletion or big edit, especially with no git history, take a snapshot and print what an index-range replace would remove. After a structural edit, check that the functions around the seam still exist, not just that the file parses.
+- **Prove the copy first.** Before deleting a backup or snapshot, compare its bytes with the copy you are relying on. If any file has no matching copy, delete nothing and ask the owner.
 - **Stay out of `LAB`.** Never read, list, search, move, commit or summarize any folder named `LAB`.
 - **Vet third-party software before helping with it.** The owner is security-sensitive. Raise trust concerns before the work, not after. Do not install anything unvetted, and build from source instead of downloading a prebuilt binary.

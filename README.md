@@ -17,7 +17,7 @@ preferences removed, so it updates whenever the source does.
 
 <!-- inventory:start -->
 
-Generated from the files in this repo: 23 skills, 2 agents, 5 hooks, 6 commands.
+Generated from the files in this repo: 23 skills, 2 agents, 6 hooks, 7 commands.
 
 ### Skills (`claude/skills/`)
 
@@ -59,6 +59,7 @@ Generated from the files in this repo: 23 skills, 2 agents, 5 hooks, 6 commands.
 | Name | What it does |
 |---|---|
 | `agent-launch-guard.py` | Agent launch guard: an agent's shell may not start Codex, or Claude headless, by hand. |
+| `backup-delete-guard.py` | Backup delete guard: an agent may not delete a backup without proof that another copy exists. |
 | `boundary-fence.py` | The "stay inside the declared boundary" rule (CLAUDE.md, Doing the work), enforced instead of remembered. |
 | `doctrine-nudge.sh` | A MECHANICAL trigger for knowledge that would otherwise depend on remembering. |
 | `pre-commit-verify.sh` | Runs a project's OWN verification bar before any `git commit`, in every repo, without each repo having to remember to wire it. |
@@ -68,6 +69,7 @@ Generated from the files in this repo: 23 skills, 2 agents, 5 hooks, 6 commands.
 
 | Name | What it does |
 |---|---|
+| `backup-retire` | Delete backups only after proving another copy holds the same bytes. |
 | `codex-rules` | Command-line entry point of the `agent-tools` skill (see its README). |
 | `codex-safe` | Command-line entry point of the `agent-tools` skill (see its README). |
 | `comply` | Command-line entry point of the `rule-loop` skill (see its README). |

@@ -19,6 +19,11 @@
             "type": "command",
             "command": "$HOME/.claude/hooks/agent-launch-guard.py",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/backup-delete-guard.py",
+            "timeout": 10
           }
         ]
       },

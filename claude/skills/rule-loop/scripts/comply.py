@@ -71,6 +71,7 @@ REVIEWED_USER_HOOKS = {
     "doctrine-nudge.sh": "65d6fb485a0b6c396564befc6a2f8e235da1db6cd51db9e129a99648cad214b9",
     "workflow-log-guard.sh": "fd0719eb13e4188226f312a13a638fc0ab8d340e4780a1dfbf2516d12ce6be55",
     "boundary-fence.py": "f6469e6a092aec59afd26b86c81aa114108c2f82ff8876a04ec0b661463b79a6",
+    "backup-delete-guard.py": "f314603355c7bbe3379a61f54c9060b2c8aa305d7d59e8629bb1e03abb11f4b3",
 }
 COMPLY_GUARD = re.compile(r'^\s*\[\s*-n\s+"\$\{COMPLY_SANDBOX:-\}"\s*\]\s*&&\s*exit 0\s*$', re.MULTILINE)
 
