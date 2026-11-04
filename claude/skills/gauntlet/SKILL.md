@@ -18,9 +18,6 @@ the bar includes the project's tests and honest reporting.
    Verdict SHIP / SHIP_WITH_FIXES, with file-exact findings graded
    blocker / should (defined in `~/.claude/agents/lane-reviewer.md`, with what
    is not reported at all); any open finding means the batch does not ship.
-   For an independent second agent on committed work, run `cross-review` (Codex
-   by default, `--reviewer claude` for the other direction): exit 0 SHIP, 1 fixes,
-   3 means the review itself failed, which is never a pass.
 3. **Apply every finding** — or justify each skip explicitly in the report.
    Blocker and should findings are never skipped.
 4. **Re-review the fixed state.** The reviewer re-verifies EVERY prior
