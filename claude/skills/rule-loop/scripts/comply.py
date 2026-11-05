@@ -72,8 +72,8 @@ USER_SETTINGS = Path.home() / ".claude/settings.json"
 # removes its own marker and week-old markers there.
 # Pinned by content: an edit to a reviewed hook needs a fresh review.
 REVIEWED_USER_HOOKS = {
-    "agent-launch-guard.py": "6148553f33a99528896cdf524fc51c5b8d4f3f9ef6eb1ab67cab517a93770c5c",
-    "context-guard.py": "052c6cdf7d5ffaf742347ed94fca11f72079d902af361dae98f8cd1023ae6b23",
+    "agent-launch-guard.py": "16d969ab72b317cb97334d1b0faf140698607a1496729344dd1574a8a829292a",
+    "context-guard.py": "d5bf4063c479949de2a6050569bc6b2a5cc4a61cb94092146b8f58df675e169b",
     "doctrine-nudge.sh": "65d6fb485a0b6c396564befc6a2f8e235da1db6cd51db9e129a99648cad214b9",
     "workflow-log-guard.sh": "fd0719eb13e4188226f312a13a638fc0ab8d340e4780a1dfbf2516d12ce6be55",
     "boundary-fence.py": "f6469e6a092aec59afd26b86c81aa114108c2f82ff8876a04ec0b661463b79a6",
