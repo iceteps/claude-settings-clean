@@ -66,8 +66,14 @@ USER_SETTINGS = Path.home() / ".claude/settings.json"
 # User hooks run outside the OS sandbox in every session. Each one here was read
 # and only inspects the tool input or prompt; any other must stand down when
 # COMPLY_SANDBOX is set. `comply selftest` enforces this.
+# Wider than that, and accepted on review: agent-launch-guard.py reads a script
+# the command names, reporting only its path; context-guard.py reads the
+# transcript, writes one integer to a sanitized marker in ~/.claude/state, and
+# removes its own marker and week-old markers there.
 # Pinned by content: an edit to a reviewed hook needs a fresh review.
 REVIEWED_USER_HOOKS = {
+    "agent-launch-guard.py": "6148553f33a99528896cdf524fc51c5b8d4f3f9ef6eb1ab67cab517a93770c5c",
+    "context-guard.py": "052c6cdf7d5ffaf742347ed94fca11f72079d902af361dae98f8cd1023ae6b23",
     "doctrine-nudge.sh": "65d6fb485a0b6c396564befc6a2f8e235da1db6cd51db9e129a99648cad214b9",
     "workflow-log-guard.sh": "fd0719eb13e4188226f312a13a638fc0ab8d340e4780a1dfbf2516d12ce6be55",
     "boundary-fence.py": "f6469e6a092aec59afd26b86c81aa114108c2f82ff8876a04ec0b661463b79a6",

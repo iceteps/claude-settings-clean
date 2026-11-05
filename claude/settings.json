@@ -58,6 +58,17 @@
           }
         ]
       }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/context-guard.py",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   },
   "statusLine": {
