@@ -1,0 +1,5 @@
+source: github.com/obsidianmd/obsidian-skills (formerly kepano/obsidian-skills)
+path: plugins/obsidian/skills/obsidian-headless
+commit: 398127736bd4ba42d767b1419fee1a927508370b
+installed: 2026-11-12, fetched via gh api and read before install (no npx)
+update: re-fetch at a new commit and re-read; nothing here auto-updates

@@ -17,13 +17,14 @@ preferences removed, so it updates whenever the source does.
 
 <!-- inventory:start -->
 
-Generated from the files in this repo: 23 skills, 2 agents, 6 hooks, 7 commands.
+Generated from the files in this repo: 30 skills, 2 agents, 6 hooks, 7 commands.
 
 ### Skills (`claude/skills/`)
 
 | Name | What it does |
 |---|---|
 | `cad-model-views` | Turn a large, unnamed CAD export (STEP/STP, often hundreds of MB from SolidWorks) into fast, labelled, shareable views — split it into identifiable groups by geometry, build quick-load glTF files for ... |
+| `defuddle` | Extract clean Markdown from HTML pages with Defuddle CLI. |
 | `deploy-and-prove` | Deploy any artifact (server process, serverless or edge function, container, static site, schema change) and then PROVE the new code is live and behaving, including the staleness check that catches ... |
 | `device-cost-audit` | Audit what a mobile (or long-open web) app costs the device in battery, radio, CPU and storage while it sits open or in the background — location (watchers, geofences, one-shot fixes), background ... |
 | `eplan-drawings` | Read, extract and audit an EPLAN electrical drawing set (PDF schematics with =function+location-device tags, PLC I/O overviews, device/cable/terminal reports) — page index, device list, cable list ... |
@@ -32,8 +33,14 @@ Generated from the files in this repo: 23 skills, 2 agents, 6 hooks, 7 commands.
 | `gauntlet` | The owner's standing acceptance process for EVERY non-trivial change batch, in ANY project — loop implementation → adversarial review → fixes until SHIP, then the project's full verification bar ... |
 | `hebrew-msg` | Write a ready-to-send Hebrew message to the team, a manager, a permissions/access owner, or a client — status update, access request, blocker escalation, handoff note. |
 | `honest-numbers` | Rules for displaying data a person will act on or be paid against — naming a figure so it cannot be misread, absent vs zero, stated vs derived vs verified, and one grammar per quantity. |
+| `json-canvas` | Create and edit JSON Canvas files (.canvas) with nodes, edges, groups, and connections. Use when working with .canvas files, creating visual canvases, mind maps, flowcharts, or when the user mentions ... |
+| `knap` | Render Markdown from templates and structured data using Knap CLI. Use when the user asks to apply a Knap template, turn JSON or CSV data into notes, batch-generate Markdown files, or format Defuddle ... |
 | `lane-sprint` | Run a batch of 2+ independent work items as parallel workflow lanes with an adversarial reviewer per lane — file-ownership partition, single-owner shared resources, the concurrency block, reviewer ... |
 | `limit-recover` | A session or usage limit killed an agent, a workflow lane, a batch run or the main loop. Checkpoint the exact resume point, tell the owner immediately with the options (usage credits, one model rung ... |
+| `obsidian-bases` | Create and edit Obsidian Bases (.base files) with views, filters, formulas, and summaries. Use when working with .base files, creating database-like views of notes, or when the user mentions Bases, ... |
+| `obsidian-cli` | Interact with Obsidian vaults using the Obsidian CLI to read, create, search, and manage notes, tasks, properties, and more. |
+| `obsidian-headless` | Sync and publish Obsidian vaults from the command line with Obsidian Headless (`ob`), without the desktop app. |
+| `obsidian-markdown` | Create and edit Obsidian Flavored Markdown with wikilinks, embeds, callouts, properties, and other Obsidian-specific syntax. |
 | `offline-first-writes` | Make writes survive no connection in a mobile or field app — an outbox that queues the action, replays it in order, and records WHEN THE USER PRESSED rather than when the network returned. |
 | `prod-check` | Query the live (production) environment directly to diagnose a bug from data instead of reasoning, verify that a migration or deploy actually landed, detect schema drift between code and the live ... |
 | `resilient-long-op` | Run any long or large operation so it SURVIVES a disconnect and is fully resumable — multi-GB downloads (ollama/model pulls, docker pulls, dataset/HuggingFace fetches, wget/curl of big files), long ... |
