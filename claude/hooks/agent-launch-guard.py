@@ -2,9 +2,9 @@
 """Agent launch guard: an agent's shell may not start Codex, or Claude headless, by hand.
 
 The owner's rules reached OpenAI because an agent ran an ad-hoc Codex probe: ~/.codex/AGENTS.md told
-it to read them and an approve-all script let it. Deliberate routes keep working: `cross-review` and
-`agent-check` jail Codex, a project's `npm run` is that project's own, and information commands are
-harmless. The owner's own `! codex ...` never passes through this hook.
+it to read them and an approve-all script let it. Deliberate routes keep working: `cross-review`,
+`codex-task` and `agent-check` jail Codex, a project's `npm run` is that project's own, and
+information commands are harmless. The owner's own `! codex ...` never passes through this hook.
 
 It reads the command line, nested shell text (`bash -c`, `eval`, `env -S`, `$(...)`, backticks, a
 heredoc fed to a shell), one variable assignment and one level of script. Not airtight, and these are
@@ -81,7 +81,7 @@ def deny(reason):
 
 
 MESSAGE = ("Starting {agent} by hand is blocked: an unsandboxed session reads the owner's rules and sends them "
-           "to its provider. Use cross-review, agent-check or the project's sandboxed runner, or ask the owner to run it with `!`.")
+           "to its provider. Use cross-review, codex-task, agent-check or the project's sandboxed runner, or ask the owner to run it with `!`.")
 
 
 def strip_heredocs(command):

@@ -17,7 +17,7 @@ preferences removed, so it updates whenever the source does.
 
 <!-- inventory:start -->
 
-Generated from the files in this repo: 30 skills, 2 agents, 6 hooks, 7 commands.
+Generated from the files in this repo: 30 skills, 2 agents, 6 hooks, 8 commands.
 
 ### Skills (`claude/skills/`)
 
@@ -79,6 +79,7 @@ Generated from the files in this repo: 30 skills, 2 agents, 6 hooks, 7 commands.
 | `backup-retire` | Delete backups only after proving another copy holds the same bytes. |
 | `codex-rules` | Command-line entry point of the `agent-tools` skill (see its README). |
 | `codex-safe` | Command-line entry point of the `agent-tools` skill (see its README). |
+| `codex-task` | Command-line entry point of the `agent-tools` skill (see its README). |
 | `comply` | Command-line entry point of the `rule-loop` skill (see its README). |
 | `corrections` | Command-line entry point of the `rule-loop` skill (see its README). |
 | `gates` | Run the verification gates against a project WITHOUT installing anything into it. |
