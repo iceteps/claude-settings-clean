@@ -54,11 +54,11 @@
     "vercel@anthropic-plugin-directory": [
       {
         "scope": "user",
-        "installPath": "~/.claude/plugins/cache/anthropic-plugin-directory/vercel/0.49.2-9ca877014339",
-        "version": "0.49.2-9ca877014339",
+        "installPath": "~/.claude/plugins/cache/anthropic-plugin-directory/vercel/0.57.0-5e43a50cf5d4",
+        "version": "0.57.0-5e43a50cf5d4",
         "installedAt": "2026-11-04T00:55:02.260Z",
-        "lastUpdated": "2026-11-04T00:55:02.260Z",
-        "gitCommitSha": "9ca8770143395d69606573e122c456566d6f419b",
+        "lastUpdated": "2026-11-24T22:21:18.948Z",
+        "gitCommitSha": "5e43a50cf5d4d10a02f1c20aaf634a202d3d0753",
         "directoryRepositoryKey": "github.com/vercel/vercel-plugin#"
       }
     ],
