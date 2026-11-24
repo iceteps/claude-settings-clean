@@ -4,7 +4,7 @@
     "IMPECCABLE_NO_TELEMETRY": "1",
     "IMPECCABLE_NO_UPDATE_CHECK": "1"
   },
-  "model": "opus",
+  "model": "claude-fable-5-2",
   "hooks": {
     "PreToolUse": [
       {
